@@ -70,7 +70,7 @@ describe("cli routing", () => {
 	});
 
 	test("stub subcommands exit non-zero with not-implemented message", async () => {
-		for (const cmd of ["install", "config", "log"]) {
+		for (const cmd of ["install", "config"]) {
 			const { stderr, exitCode } = await runCli(cmd);
 			expect(stderr).toContain("not yet implemented");
 			expect(exitCode).not.toBe(0);
