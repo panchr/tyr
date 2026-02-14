@@ -92,6 +92,24 @@ describe.concurrent("mergeHook", () => {
 		expect(permReqs).toHaveLength(2);
 	});
 
+	test("replaces existing tyr entry instead of duplicating", () => {
+		const existing = {
+			hooks: {
+				PermissionRequest: [
+					{ matcher: "Write", hooks: [{ type: "command", command: "other" }] },
+					{
+						matcher: "Bash",
+						hooks: [{ type: "command", command: "tyr judge" }],
+					},
+				],
+			},
+		};
+		const result = mergeHook(existing);
+		const hooks = result.hooks as Record<string, unknown>;
+		const permReqs = hooks.PermissionRequest as unknown[];
+		expect(permReqs).toHaveLength(2);
+	});
+
 	test("preserves non-hook settings", () => {
 		const result = mergeHook({ permissions: { allow: ["ls"] } });
 		expect(result.permissions).toEqual({ allow: ["ls"] });
@@ -150,13 +168,23 @@ describe("tyr install (integration)", () => {
 		expect(isInstalled(settings)).toBe(true);
 	});
 
-	test("detects already installed", async () => {
-		// Install once
+	test("re-install overwrites existing hook", async () => {
 		await runInstall();
-		// Install again
 		const { stdout, exitCode } = await runInstall();
 		expect(exitCode).toBe(0);
-		expect(stdout).toContain("already installed");
+		expect(stdout).toContain("Updated tyr hook");
+
+		// Verify only one tyr entry exists (no duplicates)
+		const settingsPath = join(tempDir, ".claude", "settings.json");
+		const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
+		const permReqs = settings.hooks.PermissionRequest;
+		const tyrEntries = permReqs.filter((e: Record<string, unknown>) => {
+			const hooks = e.hooks as Record<string, unknown>[];
+			return hooks?.some(
+				(h) => typeof h.command === "string" && h.command.startsWith("tyr "),
+			);
+		});
+		expect(tyrEntries).toHaveLength(1);
 	});
 
 	test("does not clobber existing hooks", async () => {

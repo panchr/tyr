@@ -36,12 +36,7 @@ export default defineCommand({
 		const settingsPath = getSettingsPath(scope);
 
 		const settings = await readSettings(settingsPath);
-
-		if (isInstalled(settings)) {
-			console.log(`tyr hook already installed in ${settingsPath}`);
-			return;
-		}
-
+		const alreadyInstalled = isInstalled(settings);
 		const updated = mergeHook(settings);
 
 		if (dryRun) {
@@ -51,6 +46,10 @@ export default defineCommand({
 		}
 
 		await writeSettings(settingsPath, updated);
-		console.log(`Installed tyr hook in ${settingsPath}`);
+		if (alreadyInstalled) {
+			console.log(`Updated tyr hook in ${settingsPath}`);
+		} else {
+			console.log(`Installed tyr hook in ${settingsPath}`);
+		}
 	},
 });

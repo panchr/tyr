@@ -50,20 +50,35 @@ export function isInstalled(settings: Record<string, unknown>): boolean {
 	});
 }
 
-/** Merge the tyr hook into settings without clobbering existing hooks. */
+/** Merge the tyr hook into settings without clobbering existing hooks.
+ *  If a tyr entry already exists it is replaced so install is idempotent. */
 export function mergeHook(
 	settings: Record<string, unknown>,
 ): Record<string, unknown> {
 	const result = { ...settings };
 	const hooks = (result.hooks ?? {}) as Record<string, unknown>;
 	const permReqs = Array.isArray(hooks.PermissionRequest)
-		? [...hooks.PermissionRequest]
+		? (hooks.PermissionRequest as Record<string, unknown>[]).filter(
+				(entry) => !isTyrEntry(entry),
+			)
 		: [];
 
 	permReqs.push(TYR_HOOK_ENTRY);
 
 	result.hooks = { ...hooks, PermissionRequest: permReqs };
 	return result;
+}
+
+/** Check if a PermissionRequest entry belongs to tyr. */
+function isTyrEntry(entry: Record<string, unknown>): boolean {
+	const entryHooks = entry.hooks;
+	if (!Array.isArray(entryHooks)) return false;
+	return entryHooks.some(
+		(h: Record<string, unknown>) =>
+			h.type === "command" &&
+			typeof h.command === "string" &&
+			h.command.startsWith("tyr "),
+	);
 }
 
 /** Write settings to disk, creating parent directories as needed. */
