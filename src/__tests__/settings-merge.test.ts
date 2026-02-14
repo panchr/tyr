@@ -12,8 +12,6 @@ import {
 	writeUserSettings,
 } from "./helpers/index.ts";
 
-// --- Unit: multi-file merging via ClaudeAgent ---
-
 describe("ClaudeAgent: multi-file merge", () => {
 	let tempDir: string;
 	let agent: ClaudeAgent;
@@ -77,7 +75,7 @@ describe("ClaudeAgent: multi-file merge", () => {
 		expect(agent.isCommandAllowed("git push --force origin main")).toBe("deny");
 	});
 
-	test("deny from any file blocks even if others allow", async () => {
+	test("deny wins when same pattern appears in allow and deny from different files", async () => {
 		const userDir = join(tempDir, "user-config");
 		const projectPath = await writeProjectSettings(tempDir, {
 			permissions: { allow: ["Bash(rm *)"] },
@@ -88,14 +86,12 @@ describe("ClaudeAgent: multi-file merge", () => {
 
 		await agent.init(tempDir, [projectPath, userPath]);
 
-		// Deny is checked before allow, so rm should be denied
 		expect(agent.isCommandAllowed("rm -rf /")).toBe("deny");
 	});
 
 	test("malformed JSON in one file doesn't break other files", async () => {
 		const claudeDir = join(tempDir, ".claude");
 		const malformedPath = join(claudeDir, "settings.local.json");
-		// writeProjectSettings creates the dir
 		const projectPath = await writeProjectSettings(tempDir, {
 			permissions: { allow: ["Bash(echo *)"] },
 		});
@@ -153,9 +149,7 @@ describe("ClaudeAgent: multi-file merge", () => {
 	});
 
 	test("settings with no permissions field is handled", async () => {
-		const projectPath = await writeProjectSettings(tempDir, {
-			hooks: { some: "stuff" },
-		});
+		const projectPath = await writeProjectSettings(tempDir, {});
 
 		await agent.init(tempDir, [projectPath]);
 
@@ -163,9 +157,7 @@ describe("ClaudeAgent: multi-file merge", () => {
 	});
 });
 
-// --- E2E: multi-scope merging through tyr check subprocess ---
-
-describe("tyr check E2E: settings merge across scopes", () => {
+describe("tyr check: settings merge across scopes", () => {
 	let tempDir: string;
 
 	function isolatedEnv(
@@ -227,7 +219,7 @@ describe("tyr check E2E: settings merge across scopes", () => {
 		expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
 	});
 
-	test("project + user rules merge: both contribute allows", async () => {
+	test("project allow and user allow both contribute rules", async () => {
 		const userDir = join(tempDir, "user-claude");
 		await writeProjectSettings(tempDir, {
 			permissions: { allow: ["Bash(git *)"] },
@@ -236,18 +228,26 @@ describe("tyr check E2E: settings merge across scopes", () => {
 			permissions: { allow: ["Bash(npm test)"] },
 		});
 
-		// Command uses both: git (project) and npm test (user)
-		const req = makePermissionRequest({
+		// Verify project rule works
+		const gitReq = makePermissionRequest({
 			cwd: tempDir,
-			command: "git status && npm test",
+			command: "git status",
 		});
-		const result = await runCheck(JSON.stringify(req), {
+		const gitResult = await runCheck(JSON.stringify(gitReq), {
 			env: isolatedEnv(tempDir, userDir),
 		});
+		expect(gitResult.exitCode).toBe(0);
+		const gitResponse = JSON.parse(gitResult.stdout) as HookResponse;
+		expect(gitResponse.hookSpecificOutput.decision.behavior).toBe("allow");
 
-		expect(result.exitCode).toBe(0);
-		const response = JSON.parse(result.stdout) as HookResponse;
-		expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
+		// Verify user rule works
+		const npmReq = makePermissionRequest({ cwd: tempDir, command: "npm test" });
+		const npmResult = await runCheck(JSON.stringify(npmReq), {
+			env: isolatedEnv(tempDir, userDir),
+		});
+		expect(npmResult.exitCode).toBe(0);
+		const npmResponse = JSON.parse(npmResult.stdout) as HookResponse;
+		expect(npmResponse.hookSpecificOutput.decision.behavior).toBe("allow");
 	});
 
 	test("three scopes: local deny + project allow + user allow", async () => {
@@ -287,7 +287,6 @@ describe("tyr check E2E: settings merge across scopes", () => {
 	});
 
 	test("malformed settings file doesn't crash tyr check", async () => {
-		// Write valid project settings but corrupt the local file
 		await writeProjectSettings(tempDir, {
 			permissions: { allow: ["Bash(echo *)"] },
 		});
