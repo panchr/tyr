@@ -1,4 +1,11 @@
 import { defineCommand } from "citty";
+import {
+	getSettingsPath,
+	isInstalled,
+	mergeHook,
+	readSettings,
+	writeSettings,
+} from "../install.ts";
 
 export default defineCommand({
 	meta: {
@@ -19,8 +26,27 @@ export default defineCommand({
 			description: "Print what would be written without modifying anything",
 		},
 	},
-	run() {
-		console.error("tyr install: not yet implemented");
-		process.exit(1);
+	async run({ args }) {
+		const scope = args.project ? "project" : "global";
+		const dryRun = args["dry-run"] ?? false;
+		const settingsPath = getSettingsPath(scope);
+
+		const settings = await readSettings(settingsPath);
+
+		if (isInstalled(settings)) {
+			console.log(`tyr hook already installed in ${settingsPath}`);
+			return;
+		}
+
+		const updated = mergeHook(settings);
+
+		if (dryRun) {
+			console.log(`Would write to ${settingsPath}:\n`);
+			console.log(JSON.stringify(updated, null, 2));
+			return;
+		}
+
+		await writeSettings(settingsPath, updated);
+		console.log(`Installed tyr hook in ${settingsPath}`);
 	},
 });
