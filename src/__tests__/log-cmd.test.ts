@@ -64,7 +64,8 @@ describe("tyr log", () => {
 		const { stdout, exitCode } = await runLog();
 		expect(exitCode).toBe(0);
 		expect(stdout).toContain("TIME");
-		expect(stdout).toContain("CWD");
+		expect(stdout).toContain("DECISION");
+		expect(stdout).toContain("PROJECT");
 		expect(stdout).toContain("TOOL");
 		expect(stdout).toContain("Bash");
 		expect(stdout).toContain("Read");
