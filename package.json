@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --compile --outfile /usr/local/bin/tyr",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
     "typecheck": "tsc --noEmit"
