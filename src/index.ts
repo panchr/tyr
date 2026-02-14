@@ -1,33 +1,23 @@
 #!/usr/bin/env bun
 
-const USAGE = `
-tyr - Intelligent permission management for Claude Code hooks
+import { defineCommand, runMain } from "citty";
+import check from "./commands/check.ts";
+import config from "./commands/config.ts";
+import install from "./commands/install.ts";
+import log from "./commands/log.ts";
 
-Usage:
-  tyr <command> [options]
+const main = defineCommand({
+	meta: {
+		name: "tyr",
+		version: "0.0.0",
+		description: "Intelligent permission management for Claude Code hooks",
+	},
+	subCommands: {
+		check,
+		install,
+		config,
+		log,
+	},
+});
 
-Options:
-  --help      Show this help message
-  --version   Show version
-`.trim();
-
-function main(): void {
-	const args = process.argv.slice(2);
-
-	if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
-		console.log(USAGE);
-		process.exit(0);
-	}
-
-	if (args.includes("--version") || args.includes("-v")) {
-		console.log("tyr 0.0.0");
-		process.exit(0);
-	}
-
-	const command = args[0];
-	console.error(`Unknown command: ${command}`);
-	console.log(USAGE);
-	process.exit(1);
-}
-
-main();
+runMain(main);
