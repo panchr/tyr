@@ -5,6 +5,7 @@ import type { PermissionResult } from "./types.ts";
 
 export interface LogEntry {
 	timestamp: string;
+	cwd: string;
 	tool_name: string;
 	tool_input: Record<string, unknown>;
 	decision: PermissionResult | "error";

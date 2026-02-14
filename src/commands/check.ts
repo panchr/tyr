@@ -58,6 +58,7 @@ export default defineCommand({
 		const duration = performance.now() - startTime;
 		const entry: LogEntry = {
 			timestamp: new Date().toISOString(),
+			cwd: req.cwd,
 			tool_name: req.tool_name,
 			tool_input: req.tool_input,
 			decision: "abstain",

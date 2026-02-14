@@ -5,6 +5,7 @@ import { getLogPath, type LogEntry, readLogEntries } from "../log.ts";
 
 function formatEntry(entry: LogEntry): string {
 	const time = entry.timestamp.replace("T", " ").replace(/\.\d+Z$/, "Z");
+	const cwd = entry.cwd;
 	const tool = entry.tool_name;
 	const decision = entry.decision.toUpperCase();
 	const provider = entry.provider ?? "-";
@@ -18,10 +19,10 @@ function formatEntry(entry: LogEntry): string {
 				? entry.tool_input.file_path
 				: JSON.stringify(entry.tool_input);
 
-	return `${time}  ${decision.padEnd(7)}  ${tool.padEnd(10)}  ${provider.padEnd(18)}  ${duration.padStart(6)}  ${input}`;
+	return `${time}  ${decision.padEnd(7)}  ${cwd.padEnd(30)}  ${tool.padEnd(10)}  ${provider.padEnd(18)}  ${duration.padStart(6)}  ${input}`;
 }
 
-const HEADER = `${"TIME".padEnd(21)}  ${"DECIDE".padEnd(7)}  ${"TOOL".padEnd(10)}  ${"PROVIDER".padEnd(18)}  ${"DUR".padStart(6)}  INPUT`;
+const HEADER = `${"TIME".padEnd(21)}  ${"DECIDE".padEnd(7)}  ${"CWD".padEnd(30)}  ${"TOOL".padEnd(10)}  ${"PROVIDER".padEnd(18)}  ${"DUR".padStart(6)}  INPUT`;
 
 const logArgs = {
 	last: {

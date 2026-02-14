@@ -7,6 +7,7 @@ import { appendLogEntry, type LogEntry, readLogEntries } from "../log.ts";
 function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
 	return {
 		timestamp: "2026-02-14T12:00:00.000Z",
+		cwd: "/test/dir",
 		tool_name: "Bash",
 		tool_input: { command: "echo hello" },
 		decision: "abstain",
@@ -134,5 +135,6 @@ describe("tyr check logging (integration)", () => {
 		expect(entries[0]?.tool_name).toBe("Bash");
 		expect(entries[0]?.decision).toBe("abstain");
 		expect(entries[0]?.session_id).toBe("abc123");
+		expect(entries[0]?.cwd).toBe("/working/directory");
 	});
 });

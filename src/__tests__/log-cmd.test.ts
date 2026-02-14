@@ -10,6 +10,7 @@ let logFile: string;
 function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
 	return {
 		timestamp: "2026-02-14T12:00:00.000Z",
+		cwd: "/test/dir",
 		tool_name: "Bash",
 		tool_input: { command: "echo hello" },
 		decision: "abstain",
@@ -63,9 +64,16 @@ describe("tyr log", () => {
 		const { stdout, exitCode } = await runLog();
 		expect(exitCode).toBe(0);
 		expect(stdout).toContain("TIME");
+		expect(stdout).toContain("CWD");
 		expect(stdout).toContain("TOOL");
 		expect(stdout).toContain("Bash");
 		expect(stdout).toContain("Read");
+	});
+
+	test("displays cwd in output", async () => {
+		await writeEntries(makeEntry({ cwd: "/my/project" }));
+		const { stdout } = await runLog();
+		expect(stdout).toContain("/my/project");
 	});
 
 	test("--last limits output", async () => {
