@@ -1,4 +1,5 @@
 import { defineCommand } from "citty";
+import { rejectUnknownArgs } from "../args.ts";
 import {
 	getSettingsPath,
 	isInstalled,
@@ -7,26 +8,29 @@ import {
 	writeSettings,
 } from "../install.ts";
 
+const installArgs = {
+	global: {
+		type: "boolean" as const,
+		description: "Write to ~/.claude/settings.json (default)",
+	},
+	project: {
+		type: "boolean" as const,
+		description: "Write to .claude/settings.json",
+	},
+	"dry-run": {
+		type: "boolean" as const,
+		description: "Print what would be written without modifying anything",
+	},
+};
+
 export default defineCommand({
 	meta: {
 		name: "install",
 		description: "Register tyr as a Claude Code hook",
 	},
-	args: {
-		global: {
-			type: "boolean",
-			description: "Write to ~/.claude/settings.json (default)",
-		},
-		project: {
-			type: "boolean",
-			description: "Write to .claude/settings.json",
-		},
-		"dry-run": {
-			type: "boolean",
-			description: "Print what would be written without modifying anything",
-		},
-	},
-	async run({ args }) {
+	args: installArgs,
+	async run({ args, rawArgs }) {
+		rejectUnknownArgs(rawArgs, installArgs);
 		const scope = args.project ? "project" : "global";
 		const dryRun = args["dry-run"] ?? false;
 		const settingsPath = getSettingsPath(scope);

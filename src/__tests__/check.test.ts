@@ -154,4 +154,12 @@ describe("tyr check (integration)", () => {
 		expect(exitCode).toBe(2);
 		expect(stderr).toContain("[tyr]");
 	});
+
+	test("rejects unknown flags", async () => {
+		const { stderr, exitCode } = await runCheck(JSON.stringify(VALID_REQUEST), [
+			"--bogus",
+		]);
+		expect(exitCode).toBe(1);
+		expect(stderr).toContain("Unknown option: --bogus");
+	});
 });

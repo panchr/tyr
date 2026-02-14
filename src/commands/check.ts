@@ -1,19 +1,23 @@
 import { defineCommand } from "citty";
+import { rejectUnknownArgs } from "../args.ts";
 import { parsePermissionRequest, readStdin } from "../check.ts";
 import { appendLogEntry, type LogEntry } from "../log.ts";
+
+const checkArgs = {
+	verbose: {
+		type: "boolean" as const,
+		description: "Emit debug info to stderr",
+	},
+};
 
 export default defineCommand({
 	meta: {
 		name: "check",
 		description: "Evaluate a permission request (hook entry point)",
 	},
-	args: {
-		verbose: {
-			type: "boolean",
-			description: "Emit debug info to stderr",
-		},
-	},
-	async run({ args }) {
+	args: checkArgs,
+	async run({ args, rawArgs }) {
+		rejectUnknownArgs(rawArgs, checkArgs);
 		const verbose = args.verbose ?? false;
 		const startTime = performance.now();
 

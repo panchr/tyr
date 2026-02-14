@@ -1,5 +1,6 @@
 import { open, watch } from "node:fs/promises";
 import { defineCommand } from "citty";
+import { rejectUnknownArgs } from "../args.ts";
 import { getLogPath, type LogEntry, readLogEntries } from "../log.ts";
 
 function formatEntry(entry: LogEntry): string {
@@ -22,27 +23,30 @@ function formatEntry(entry: LogEntry): string {
 
 const HEADER = `${"TIME".padEnd(21)}  ${"DECIDE".padEnd(7)}  ${"TOOL".padEnd(10)}  ${"PROVIDER".padEnd(18)}  ${"DUR".padStart(6)}  INPUT`;
 
+const logArgs = {
+	last: {
+		type: "string" as const,
+		description: "Show last N entries (default: 20)",
+	},
+	json: {
+		type: "boolean" as const,
+		description: "Raw JSON output",
+	},
+	follow: {
+		type: "boolean" as const,
+		alias: "f",
+		description: "Tail the log",
+	},
+};
+
 export default defineCommand({
 	meta: {
 		name: "log",
 		description: "View permission check history",
 	},
-	args: {
-		last: {
-			type: "string",
-			description: "Show last N entries (default: 20)",
-		},
-		json: {
-			type: "boolean",
-			description: "Raw JSON output",
-		},
-		follow: {
-			type: "boolean",
-			alias: "f",
-			description: "Tail the log",
-		},
-	},
-	async run({ args }) {
+	args: logArgs,
+	async run({ args, rawArgs }) {
+		rejectUnknownArgs(rawArgs, logArgs);
 		const last = args.last ? Number.parseInt(args.last, 10) : 20;
 		const jsonMode = args.json ?? false;
 		const follow = args.follow ?? false;

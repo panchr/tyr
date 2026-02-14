@@ -119,4 +119,10 @@ describe("tyr log", () => {
 		const { stdout } = await runLog();
 		expect(stdout).toContain("/etc/hosts");
 	});
+
+	test("rejects unknown flags", async () => {
+		const { stderr, exitCode } = await runLog("-j");
+		expect(exitCode).toBe(1);
+		expect(stderr).toContain("Unknown option: -j");
+	});
 });
