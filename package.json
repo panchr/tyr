@@ -1,8 +1,11 @@
 {
-  "name": "claude-fastpass",
-  "module": "index.ts",
+  "name": "tyr",
+  "module": "src/cli.ts",
   "type": "module",
   "private": true,
+  "bin": {
+    "tyr": "src/cli.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },

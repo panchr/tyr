@@ -14,8 +14,7 @@ bd sync               # Sync with git
 
 ## Landing the Plane (Session Completion)
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git commit`
-succeeds.
+**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git commit` succeeds.
 
 **MANDATORY WORKFLOW:**
 
@@ -30,5 +29,5 @@ succeeds.
 
 - Work is NOT complete until `bd` is updated
 - NEVER use `bd sync`
-- When committing a task, always include `.beads/issues.jsonl` in the same commit so beads state stays in
-sync with the code changes
+- When committing a task, always include `.beads/issues.jsonl` in the same commit so beads state stays in sync with the code changes.
+- Only close a task once the work has been committed
