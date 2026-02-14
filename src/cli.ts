@@ -20,22 +20,22 @@ Run 'tyr <command> --help' for more information on a command.
 `.trim();
 
 function main(): void {
-  const args = process.argv.slice(2);
+	const args = process.argv.slice(2);
 
-  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
-    console.log(USAGE);
-    process.exit(0);
-  }
+	if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
+		console.log(USAGE);
+		process.exit(0);
+	}
 
-  if (args.includes("--version") || args.includes("-v")) {
-    console.log("tyr 0.0.0");
-    process.exit(0);
-  }
+	if (args.includes("--version") || args.includes("-v")) {
+		console.log("tyr 0.0.0");
+		process.exit(0);
+	}
 
-  const command = args[0];
-  console.error(`Unknown command: ${command}`);
-  console.log(USAGE);
-  process.exit(1);
+	const command = args[0];
+	console.error(`Unknown command: ${command}`);
+	console.log(USAGE);
+	process.exit(1);
 }
 
 main();
