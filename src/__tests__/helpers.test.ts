@@ -8,7 +8,7 @@ import {
 	runJudge,
 } from "./helpers/index.ts";
 
-describe("fixtures", () => {
+describe.concurrent("fixtures", () => {
 	test("makePermissionRequest creates valid request", () => {
 		const req = makePermissionRequest();
 		expect(req.tool_name).toBe("Bash");
@@ -40,7 +40,7 @@ describe("fixtures", () => {
 	});
 });
 
-describe("subprocess helpers", () => {
+describe.concurrent("subprocess helpers", () => {
 	test("runJudge captures stdout, stderr, and exit code on valid input", async () => {
 		const req = makePermissionRequest();
 		const result = await runJudge(JSON.stringify(req));

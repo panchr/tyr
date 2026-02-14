@@ -17,7 +17,7 @@ async function runCli(
 	return { stdout, stderr, exitCode };
 }
 
-describe("cli routing", () => {
+describe.concurrent("cli routing", () => {
 	test("no args shows usage and exits non-zero", async () => {
 		const { stdout, exitCode } = await runCli();
 		expect(stdout).toContain("config|debug|install|judge|log|version");

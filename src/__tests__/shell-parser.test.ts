@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { parseCommands } from "../providers/shell-parser.ts";
 
-describe("parseCommands", () => {
+describe.concurrent("parseCommands", () => {
 	test("simple command", () => {
 		const result = parseCommands("echo hello");
 		expect(result).toEqual([

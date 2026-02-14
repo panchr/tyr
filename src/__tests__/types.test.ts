@@ -8,7 +8,7 @@ import {
 	type TyrConfig,
 } from "../types.ts";
 
-describe("PermissionRequest", () => {
+describe.concurrent("PermissionRequest", () => {
 	const validRequest: PermissionRequest = {
 		session_id: "abc123",
 		transcript_path: "/path/to/transcript.jsonl",
@@ -46,14 +46,14 @@ describe("PermissionRequest", () => {
 	});
 });
 
-describe("PermissionResult", () => {
+describe.concurrent("PermissionResult", () => {
 	test("allows valid values", () => {
 		const values: PermissionResult[] = ["allow", "deny", "abstain"];
 		expect(values).toHaveLength(3);
 	});
 });
 
-describe("HookResponse", () => {
+describe.concurrent("HookResponse", () => {
 	test("allow response has correct shape", () => {
 		const response: HookResponse = {
 			hookSpecificOutput: {
@@ -75,7 +75,7 @@ describe("HookResponse", () => {
 	});
 });
 
-describe("Provider", () => {
+describe.concurrent("Provider", () => {
 	test("can implement the Provider interface", async () => {
 		const stubProvider: Provider = {
 			name: "stub",
@@ -88,7 +88,7 @@ describe("Provider", () => {
 	});
 });
 
-describe("TyrConfig", () => {
+describe.concurrent("TyrConfig", () => {
 	test("DEFAULT_TYR_CONFIG has expected defaults", () => {
 		expect(DEFAULT_TYR_CONFIG).toEqual({
 			allowChainedCommands: true,

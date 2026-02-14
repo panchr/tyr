@@ -35,7 +35,7 @@ describe("getConfigPath", () => {
 	});
 });
 
-describe("isValidKey", () => {
+describe.concurrent("isValidKey", () => {
 	test("accepts valid keys", () => {
 		expect(isValidKey("allowChainedCommands")).toBe(true);
 		expect(isValidKey("failOpen")).toBe(true);
@@ -49,7 +49,7 @@ describe("isValidKey", () => {
 	});
 });
 
-describe("parseValue", () => {
+describe.concurrent("parseValue", () => {
 	test("parses boolean true", () => {
 		expect(parseValue("failOpen", "true")).toBe(true);
 	});

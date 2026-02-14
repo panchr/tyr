@@ -14,7 +14,7 @@ const VALID_REQUEST = {
 	},
 };
 
-describe("parsePermissionRequest", () => {
+describe.concurrent("parsePermissionRequest", () => {
 	test("accepts valid PermissionRequest", () => {
 		const req = parsePermissionRequest(VALID_REQUEST);
 		expect(req).not.toBeNull();
@@ -118,7 +118,7 @@ async function runJudge(
 	return { stdout, stderr, exitCode };
 }
 
-describe("tyr judge (integration)", () => {
+describe.concurrent("tyr judge (integration)", () => {
 	test("valid request -> exit 0, empty stdout (fall-through)", async () => {
 		const { stdout, exitCode } = await runJudge(JSON.stringify(VALID_REQUEST));
 		expect(exitCode).toBe(0);

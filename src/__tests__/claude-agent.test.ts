@@ -17,7 +17,7 @@ function testPaths(tempDir: string): string[] {
 	];
 }
 
-describe("extractBashPatterns", () => {
+describe.concurrent("extractBashPatterns", () => {
 	test("extracts pattern from Bash(specifier)", () => {
 		expect(extractBashPatterns(["Bash(npm run *)"])).toEqual(["npm run *"]);
 	});
@@ -51,7 +51,7 @@ describe("extractBashPatterns", () => {
 	});
 });
 
-describe("matchPattern", () => {
+describe.concurrent("matchPattern", () => {
 	test("exact match", () => {
 		expect(matchPattern("npm test", "npm test")).toBe(true);
 	});

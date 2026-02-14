@@ -36,7 +36,7 @@ function makeErrorProvider(name: string): Provider {
 	};
 }
 
-describe("runPipeline", () => {
+describe.concurrent("runPipeline", () => {
 	test("first allow wins", async () => {
 		const result = await runPipeline(
 			[makeProvider("a", "abstain"), makeProvider("b", "allow")],

@@ -33,7 +33,7 @@ describe("readSettings", () => {
 	});
 });
 
-describe("isInstalled", () => {
+describe.concurrent("isInstalled", () => {
 	test("returns false for empty settings", () => {
 		expect(isInstalled({})).toBe(false);
 	});
@@ -69,7 +69,7 @@ describe("isInstalled", () => {
 	});
 });
 
-describe("mergeHook", () => {
+describe.concurrent("mergeHook", () => {
 	test("adds hooks to empty settings", () => {
 		const result = mergeHook({});
 		expect(result.hooks).toBeDefined();
