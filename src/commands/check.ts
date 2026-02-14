@@ -1,5 +1,6 @@
 import { defineCommand } from "citty";
 import { parsePermissionRequest, readStdin } from "../check.ts";
+import { appendLogEntry, type LogEntry } from "../log.ts";
 
 export default defineCommand({
 	meta: {
@@ -14,6 +15,7 @@ export default defineCommand({
 	},
 	async run({ args }) {
 		const verbose = args.verbose ?? false;
+		const startTime = performance.now();
 
 		let raw: string;
 		try {
@@ -49,6 +51,23 @@ export default defineCommand({
 		}
 
 		// Fall-through: no opinion yet (providers will be wired in later)
+		const duration = performance.now() - startTime;
+		const entry: LogEntry = {
+			timestamp: new Date().toISOString(),
+			tool_name: req.tool_name,
+			tool_input: req.tool_input,
+			decision: "abstain",
+			provider: null,
+			duration_ms: Math.round(duration),
+			session_id: req.session_id,
+		};
+
+		try {
+			await appendLogEntry(entry);
+		} catch (err) {
+			if (verbose) console.error("[tyr] failed to write log:", err);
+		}
+
 		process.exit(0);
 	},
 });
