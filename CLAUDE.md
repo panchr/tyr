@@ -27,7 +27,8 @@ bd sync               # Sync with git
 
 **CRITICAL RULES:**
 
-- Work is NOT complete until `bd` is updated
-- NEVER use `bd sync`
+- **After finishing any task, immediately commit and close it** — do not wait for the user to remind you. The sequence is: run quality gates → `bd close <id>` → `bd sync --from-main` → `git add` (include `.beads/issues.jsonl`) → `git commit`. This is not optional.
+- Work is NOT complete until `bd` is updated AND `git commit` succeeds
+- NEVER use `bd sync` (use `bd sync --from-main` on ephemeral branches)
 - When committing a task, always include `.beads/issues.jsonl` in the same commit so beads state stays in sync with the code changes.
 - Only close a task once the work has been committed
