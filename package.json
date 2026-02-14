@@ -1,12 +1,13 @@
 {
   "name": "tyr",
-  "module": "src/cli.ts",
+  "module": "src/index.ts",
   "type": "module",
   "private": true,
   "bin": {
-    "tyr": "src/cli.ts"
+    "tyr": "src/index.ts"
   },
   "scripts": {
+    "start": "bun run src/index.ts",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
     "typecheck": "tsc --noEmit"

@@ -6,17 +6,9 @@ tyr - Intelligent permission management for Claude Code hooks
 Usage:
   tyr <command> [options]
 
-Commands:
-  check       Evaluate a permission request (hook entry point)
-  install     Register tyr as a Claude Code hook
-  config      View and manage tyr configuration
-  log         View permission check history
-
 Options:
   --help      Show this help message
   --version   Show version
-
-Run 'tyr <command> --help' for more information on a command.
 `.trim();
 
 function main(): void {
