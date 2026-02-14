@@ -102,6 +102,19 @@ export class ClaudeAgent {
 		}
 	}
 
+	/** Return the resolved settings file paths and merged permissions. */
+	getDebugInfo(): {
+		paths: string[];
+		allow: string[];
+		deny: string[];
+	} {
+		return {
+			paths: [...this.paths],
+			allow: [...this.allow],
+			deny: [...this.deny],
+		};
+	}
+
 	/** Check if a command is allowed/denied/unknown per configured permissions. */
 	isCommandAllowed(cmd: string): "allow" | "deny" | "unknown" {
 		// Deny rules are evaluated first; first match wins.
