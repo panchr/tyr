@@ -1,18 +1,20 @@
 import { appendFile, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import type { PermissionResult } from "./types.ts";
+import { z } from "zod/v4";
 
-export interface LogEntry {
-	timestamp: string;
-	cwd: string;
-	tool_name: string;
-	tool_input: Record<string, unknown>;
-	decision: PermissionResult | "error";
-	provider: string | null;
-	duration_ms: number;
-	session_id: string;
-}
+export const LogEntrySchema = z.object({
+	timestamp: z.string(),
+	cwd: z.string(),
+	tool_name: z.string(),
+	tool_input: z.record(z.string(), z.unknown()),
+	decision: z.enum(["allow", "deny", "abstain", "error"]),
+	provider: z.string().nullable(),
+	duration_ms: z.number(),
+	session_id: z.string(),
+});
+
+export type LogEntry = z.infer<typeof LogEntrySchema>;
 
 const DEFAULT_LOG_DIR = join(homedir(), ".local", "share", "tyr");
 const DEFAULT_LOG_FILE = join(DEFAULT_LOG_DIR, "log.jsonl");
@@ -34,7 +36,13 @@ export async function readLogEntries(last?: number): Promise<LogEntry[]> {
 
 	const text = await file.text();
 	const lines = text.trim().split("\n").filter(Boolean);
-	const entries = lines.map((line) => JSON.parse(line) as LogEntry);
+	const entries: LogEntry[] = [];
+	for (const line of lines) {
+		const parsed = LogEntrySchema.safeParse(JSON.parse(line));
+		if (parsed.success) {
+			entries.push(parsed.data);
+		}
+	}
 
 	if (last !== undefined && last > 0) {
 		return entries.slice(-last);
