@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "citty": "^0.2.1",
+    "mvdan-sh": "^0.10.1",
     "zod": "^4.3.6"
   }
 }
