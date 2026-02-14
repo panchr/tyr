@@ -1,15 +1,19 @@
+import { z } from "zod/v4";
+
 // -- Hook interface types (Claude Code PermissionRequest) --
 
-/** The JSON payload Claude Code sends to hooks on PermissionRequest events. */
-export interface PermissionRequest {
-	session_id: string;
-	transcript_path: string;
-	cwd: string;
-	permission_mode: string;
-	hook_event_name: "PermissionRequest";
-	tool_name: string;
-	tool_input: Record<string, unknown>;
-}
+/** Schema for the JSON payload Claude Code sends to hooks on PermissionRequest events. */
+export const PermissionRequestSchema = z.object({
+	session_id: z.string(),
+	transcript_path: z.string(),
+	cwd: z.string(),
+	permission_mode: z.string(),
+	hook_event_name: z.literal("PermissionRequest"),
+	tool_name: z.string(),
+	tool_input: z.record(z.string(), z.unknown()),
+});
+
+export type PermissionRequest = z.infer<typeof PermissionRequestSchema>;
 
 /** A provider's verdict on a permission request. */
 export type PermissionResult = "allow" | "deny" | "abstain";

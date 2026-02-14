@@ -1,20 +1,12 @@
-import type { PermissionRequest } from "./types.ts";
+import { type PermissionRequest, PermissionRequestSchema } from "./types.ts";
 
-/** Validate that a parsed JSON value is a PermissionRequest. */
+/** Parse and validate a PermissionRequest from unknown input. */
 export function parsePermissionRequest(
 	data: unknown,
 ): PermissionRequest | null {
-	if (typeof data !== "object" || data === null) return null;
-
-	const obj = data as Record<string, unknown>;
-
-	if (typeof obj.session_id !== "string") return null;
-	if (typeof obj.tool_name !== "string") return null;
-	if (typeof obj.tool_input !== "object" || obj.tool_input === null)
-		return null;
-	if (obj.hook_event_name !== "PermissionRequest") return null;
-
-	return data as PermissionRequest;
+	const result = PermissionRequestSchema.safeParse(data);
+	if (!result.success) return null;
+	return result.data;
 }
 
 /** Read all of stdin as a string. */

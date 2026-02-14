@@ -59,6 +59,41 @@ describe("parsePermissionRequest", () => {
 			parsePermissionRequest({ ...VALID_REQUEST, tool_input: null }),
 		).toBeNull();
 	});
+
+	test("rejects missing cwd", () => {
+		const { cwd, ...rest } = VALID_REQUEST;
+		expect(parsePermissionRequest(rest)).toBeNull();
+	});
+
+	test("rejects missing transcript_path", () => {
+		const { transcript_path, ...rest } = VALID_REQUEST;
+		expect(parsePermissionRequest(rest)).toBeNull();
+	});
+
+	test("rejects missing permission_mode", () => {
+		const { permission_mode, ...rest } = VALID_REQUEST;
+		expect(parsePermissionRequest(rest)).toBeNull();
+	});
+
+	test("accepts extra fields", () => {
+		const req = parsePermissionRequest({
+			...VALID_REQUEST,
+			extra_field: "should be fine",
+		});
+		expect(req).not.toBeNull();
+		expect(req?.tool_name).toBe("Bash");
+	});
+
+	test("rejects non-string session_id", () => {
+		expect(
+			parsePermissionRequest({ ...VALID_REQUEST, session_id: 123 }),
+		).toBeNull();
+	});
+
+	test("rejects missing hook_event_name", () => {
+		const { hook_event_name, ...rest } = VALID_REQUEST;
+		expect(parsePermissionRequest(rest)).toBeNull();
+	});
 });
 
 /** Run `tyr check` as a subprocess, piping input to stdin. */
