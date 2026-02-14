@@ -28,7 +28,7 @@ afterEach(async () => {
 	await rm(tempDir, { recursive: true, force: true });
 });
 
-describe("Phase 1 E2E: chained commands pipeline", () => {
+describe("tyr check", () => {
 	test("allowed chained command returns allow response", async () => {
 		await writeProjectSettings(tempDir, {
 			permissions: {
