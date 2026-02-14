@@ -6,6 +6,7 @@ import debug from "./commands/debug.ts";
 import install from "./commands/install.ts";
 import judge from "./commands/judge.ts";
 import log from "./commands/log.ts";
+import version from "./commands/version.ts";
 
 const main = defineCommand({
 	meta: {
@@ -19,6 +20,7 @@ const main = defineCommand({
 		install,
 		judge,
 		log,
+		version,
 	},
 });
 

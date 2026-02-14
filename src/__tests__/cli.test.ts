@@ -20,13 +20,13 @@ async function runCli(
 describe("cli routing", () => {
 	test("no args shows usage and exits non-zero", async () => {
 		const { stdout, exitCode } = await runCli();
-		expect(stdout).toContain("config|debug|install|judge|log");
+		expect(stdout).toContain("config|debug|install|judge|log|version");
 		expect(exitCode).not.toBe(0);
 	});
 
 	test("--help shows usage and exits 0", async () => {
 		const { stdout, exitCode } = await runCli("--help");
-		expect(stdout).toContain("config|debug|install|judge|log");
+		expect(stdout).toContain("config|debug|install|judge|log|version");
 		expect(exitCode).toBe(0);
 	});
 
@@ -38,7 +38,7 @@ describe("cli routing", () => {
 
 	test("unknown subcommand shows usage", async () => {
 		const { stdout, exitCode } = await runCli("bogus");
-		expect(stdout).toContain("config|debug|install|judge|log");
+		expect(stdout).toContain("config|debug|install|judge|log|version");
 		expect(exitCode).not.toBe(0);
 	});
 
@@ -66,6 +66,13 @@ describe("cli routing", () => {
 		const { stdout, exitCode } = await runCli("log", "--help");
 		expect(stdout).toContain("--json");
 		expect(stdout).toContain("--follow");
+		expect(exitCode).toBe(0);
+	});
+
+	test("version subcommand prints tyr version", async () => {
+		const { stdout, exitCode } = await runCli("version");
+		expect(stdout).toContain("tyr ");
+		expect(stdout).toContain("bun ");
 		expect(exitCode).toBe(0);
 	});
 
