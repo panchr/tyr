@@ -20,13 +20,13 @@ async function runCli(
 describe("cli routing", () => {
 	test("no args shows usage and exits non-zero", async () => {
 		const { stdout, exitCode } = await runCli();
-		expect(stdout).toContain("check|config|debug|install|log");
+		expect(stdout).toContain("config|debug|install|judge|log");
 		expect(exitCode).not.toBe(0);
 	});
 
 	test("--help shows usage and exits 0", async () => {
 		const { stdout, exitCode } = await runCli("--help");
-		expect(stdout).toContain("check|config|debug|install|log");
+		expect(stdout).toContain("config|debug|install|judge|log");
 		expect(exitCode).toBe(0);
 	});
 
@@ -38,12 +38,12 @@ describe("cli routing", () => {
 
 	test("unknown subcommand shows usage", async () => {
 		const { stdout, exitCode } = await runCli("bogus");
-		expect(stdout).toContain("check|config|debug|install|log");
+		expect(stdout).toContain("config|debug|install|judge|log");
 		expect(exitCode).not.toBe(0);
 	});
 
-	test("check --help shows check usage", async () => {
-		const { stdout, exitCode } = await runCli("check", "--help");
+	test("judge --help shows judge usage", async () => {
+		const { stdout, exitCode } = await runCli("judge", "--help");
 		expect(stdout).toContain("--verbose");
 		expect(exitCode).toBe(0);
 	});

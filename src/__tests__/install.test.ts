@@ -53,14 +53,14 @@ describe("isInstalled", () => {
 		).toBe(false);
 	});
 
-	test("returns true when tyr check is present", () => {
+	test("returns true when tyr judge is present", () => {
 		expect(
 			isInstalled({
 				hooks: {
 					PermissionRequest: [
 						{
 							matcher: "Bash",
-							hooks: [{ type: "command", command: "tyr check" }],
+							hooks: [{ type: "command", command: "tyr judge" }],
 						},
 					],
 				},
@@ -132,7 +132,7 @@ describe("tyr install (integration)", () => {
 		const { stdout, exitCode } = await runInstall("--dry-run");
 		expect(exitCode).toBe(0);
 		expect(stdout).toContain("Would write to");
-		expect(stdout).toContain("tyr check");
+		expect(stdout).toContain("tyr judge");
 
 		// Verify nothing was written
 		const settingsPath = join(tempDir, ".claude", "settings.json");

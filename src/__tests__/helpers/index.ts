@@ -10,4 +10,4 @@ export {
 	writeUserSettings,
 } from "./settings.ts";
 export type { CliResult } from "./subprocess.ts";
-export { runCheck, runCli } from "./subprocess.ts";
+export { runCli, runJudge } from "./subprocess.ts";

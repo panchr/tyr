@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 
 const TYR_HOOK = {
 	type: "command",
-	command: "tyr check",
+	command: "tyr judge",
 };
 
 /** The hook entry tyr installs for PermissionRequest events. */
@@ -45,7 +45,7 @@ export function isInstalled(settings: Record<string, unknown>): boolean {
 		if (!Array.isArray(entryHooks)) return false;
 		return entryHooks.some(
 			(h: Record<string, unknown>) =>
-				h.type === "command" && h.command === "tyr check",
+				h.type === "command" && h.command === "tyr judge",
 		);
 	});
 }

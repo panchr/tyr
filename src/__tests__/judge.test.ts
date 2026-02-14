@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parsePermissionRequest } from "../check.ts";
+import { parsePermissionRequest } from "../judge.ts";
 
 const VALID_REQUEST = {
 	session_id: "abc123",
@@ -96,13 +96,13 @@ describe("parsePermissionRequest", () => {
 	});
 });
 
-/** Run `tyr check` as a subprocess, piping input to stdin. */
-async function runCheck(
+/** Run `tyr judge` as a subprocess, piping input to stdin. */
+async function runJudge(
 	stdin: string,
 	extraArgs: string[] = [],
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
 	const proc = Bun.spawn(
-		["bun", "run", "src/index.ts", "check", ...extraArgs],
+		["bun", "run", "src/index.ts", "judge", ...extraArgs],
 		{
 			cwd: `${import.meta.dir}/../..`,
 			stdout: "pipe",
@@ -118,30 +118,30 @@ async function runCheck(
 	return { stdout, stderr, exitCode };
 }
 
-describe("tyr check (integration)", () => {
+describe("tyr judge (integration)", () => {
 	test("valid request -> exit 0, empty stdout (fall-through)", async () => {
-		const { stdout, exitCode } = await runCheck(JSON.stringify(VALID_REQUEST));
+		const { stdout, exitCode } = await runJudge(JSON.stringify(VALID_REQUEST));
 		expect(exitCode).toBe(0);
 		expect(stdout.trim()).toBe("");
 	});
 
 	test("malformed JSON -> exit 2", async () => {
-		const { exitCode } = await runCheck("not json{{{");
+		const { exitCode } = await runJudge("not json{{{");
 		expect(exitCode).toBe(2);
 	});
 
 	test("valid JSON but wrong shape -> exit 2", async () => {
-		const { exitCode } = await runCheck(JSON.stringify({ foo: "bar" }));
+		const { exitCode } = await runJudge(JSON.stringify({ foo: "bar" }));
 		expect(exitCode).toBe(2);
 	});
 
 	test("empty stdin -> exit 2", async () => {
-		const { exitCode } = await runCheck("");
+		const { exitCode } = await runJudge("");
 		expect(exitCode).toBe(2);
 	});
 
 	test("--verbose emits debug info to stderr", async () => {
-		const { stderr, exitCode } = await runCheck(JSON.stringify(VALID_REQUEST), [
+		const { stderr, exitCode } = await runJudge(JSON.stringify(VALID_REQUEST), [
 			"--verbose",
 		]);
 		expect(exitCode).toBe(0);
@@ -150,13 +150,13 @@ describe("tyr check (integration)", () => {
 	});
 
 	test("--verbose on malformed input shows error on stderr", async () => {
-		const { stderr, exitCode } = await runCheck("{bad", ["--verbose"]);
+		const { stderr, exitCode } = await runJudge("{bad", ["--verbose"]);
 		expect(exitCode).toBe(2);
 		expect(stderr).toContain("[tyr]");
 	});
 
 	test("rejects unknown flags", async () => {
-		const { stderr, exitCode } = await runCheck(JSON.stringify(VALID_REQUEST), [
+		const { stderr, exitCode } = await runJudge(JSON.stringify(VALID_REQUEST), [
 			"--bogus",
 		]);
 		expect(exitCode).toBe(1);

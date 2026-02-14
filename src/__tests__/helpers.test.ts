@@ -4,8 +4,8 @@ import {
 	makeNonBashRequest,
 	makePermissionRequest,
 	makeWrongEventRequest,
-	runCheck,
 	runCli,
+	runJudge,
 } from "./helpers/index.ts";
 
 describe("fixtures", () => {
@@ -41,22 +41,22 @@ describe("fixtures", () => {
 });
 
 describe("subprocess helpers", () => {
-	test("runCheck captures stdout, stderr, and exit code on valid input", async () => {
+	test("runJudge captures stdout, stderr, and exit code on valid input", async () => {
 		const req = makePermissionRequest();
-		const result = await runCheck(JSON.stringify(req));
+		const result = await runJudge(JSON.stringify(req));
 		expect(result.exitCode).toBe(0);
 		expect(typeof result.stdout).toBe("string");
 		expect(typeof result.stderr).toBe("string");
 	});
 
-	test("runCheck captures non-zero exit on bad input", async () => {
-		const result = await runCheck("not json");
+	test("runJudge captures non-zero exit on bad input", async () => {
+		const result = await runJudge("not json");
 		expect(result.exitCode).toBe(2);
 	});
 
-	test("runCheck passes extra args", async () => {
+	test("runJudge passes extra args", async () => {
 		const req = makePermissionRequest();
-		const result = await runCheck(JSON.stringify(req), {
+		const result = await runJudge(JSON.stringify(req), {
 			args: ["--verbose"],
 		});
 		expect(result.exitCode).toBe(0);

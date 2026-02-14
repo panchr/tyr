@@ -9,8 +9,8 @@ export interface CliResult {
 
 const PROJECT_ROOT = resolve(import.meta.dir, "../../..");
 
-/** Run `tyr check` as a subprocess, piping input to stdin. */
-export async function runCheck(
+/** Run `tyr judge` as a subprocess, piping input to stdin. */
+export async function runJudge(
 	stdin: string,
 	options: {
 		args?: string[];
@@ -18,7 +18,7 @@ export async function runCheck(
 	} = {},
 ): Promise<CliResult> {
 	const proc = Bun.spawn(
-		["bun", "run", "src/index.ts", "check", ...(options.args ?? [])],
+		["bun", "run", "src/index.ts", "judge", ...(options.args ?? [])],
 		{
 			cwd: PROJECT_ROOT,
 			stdout: "pipe",

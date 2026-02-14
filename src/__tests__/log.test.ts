@@ -118,10 +118,10 @@ const VALID_REQUEST = {
 	tool_input: { command: "echo hello" },
 };
 
-describe("tyr check logging (integration)", () => {
-	test("check writes a log entry on valid request", async () => {
+describe("tyr judge logging (integration)", () => {
+	test("judge writes a log entry on valid request", async () => {
 		await setupTempLog();
-		const proc = Bun.spawn(["bun", "run", "src/index.ts", "check"], {
+		const proc = Bun.spawn(["bun", "run", "src/index.ts", "judge"], {
 			cwd: `${import.meta.dir}/../..`,
 			stdout: "pipe",
 			stderr: "pipe",

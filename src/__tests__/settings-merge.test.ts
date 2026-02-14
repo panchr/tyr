@@ -6,7 +6,7 @@ import { ClaudeAgent } from "../agents/claude.ts";
 import type { HookResponse } from "../types.ts";
 import {
 	makePermissionRequest,
-	runCheck,
+	runJudge,
 	writeLocalSettings,
 	writeProjectSettings,
 	writeUserSettings,
@@ -157,7 +157,7 @@ describe("ClaudeAgent: multi-file merge", () => {
 	});
 });
 
-describe("tyr check: settings merge across scopes", () => {
+describe("tyr judge: settings merge across scopes", () => {
 	let tempDir: string;
 
 	function isolatedEnv(
@@ -191,7 +191,7 @@ describe("tyr check: settings merge across scopes", () => {
 			cwd: tempDir,
 			command: "git push origin main",
 		});
-		const result = await runCheck(JSON.stringify(req), {
+		const result = await runJudge(JSON.stringify(req), {
 			env: isolatedEnv(tempDir),
 		});
 
@@ -210,7 +210,7 @@ describe("tyr check: settings merge across scopes", () => {
 			cwd: tempDir,
 			command: "npm test",
 		});
-		const result = await runCheck(JSON.stringify(req), {
+		const result = await runJudge(JSON.stringify(req), {
 			env: isolatedEnv(tempDir, userDir),
 		});
 
@@ -233,7 +233,7 @@ describe("tyr check: settings merge across scopes", () => {
 			cwd: tempDir,
 			command: "git status",
 		});
-		const gitResult = await runCheck(JSON.stringify(gitReq), {
+		const gitResult = await runJudge(JSON.stringify(gitReq), {
 			env: isolatedEnv(tempDir, userDir),
 		});
 		expect(gitResult.exitCode).toBe(0);
@@ -242,7 +242,7 @@ describe("tyr check: settings merge across scopes", () => {
 
 		// Verify user rule works
 		const npmReq = makePermissionRequest({ cwd: tempDir, command: "npm test" });
-		const npmResult = await runCheck(JSON.stringify(npmReq), {
+		const npmResult = await runJudge(JSON.stringify(npmReq), {
 			env: isolatedEnv(tempDir, userDir),
 		});
 		expect(npmResult.exitCode).toBe(0);
@@ -267,7 +267,7 @@ describe("tyr check: settings merge across scopes", () => {
 			cwd: tempDir,
 			command: "git status",
 		});
-		const allowResult = await runCheck(JSON.stringify(allowReq), {
+		const allowResult = await runJudge(JSON.stringify(allowReq), {
 			env: isolatedEnv(tempDir, userDir),
 		});
 		expect(allowResult.exitCode).toBe(0);
@@ -278,7 +278,7 @@ describe("tyr check: settings merge across scopes", () => {
 			cwd: tempDir,
 			command: "git push --force origin main",
 		});
-		const denyResult = await runCheck(JSON.stringify(denyReq), {
+		const denyResult = await runJudge(JSON.stringify(denyReq), {
 			env: isolatedEnv(tempDir, userDir),
 		});
 		expect(denyResult.exitCode).toBe(0);
@@ -286,7 +286,7 @@ describe("tyr check: settings merge across scopes", () => {
 		expect(denyResponse.hookSpecificOutput.decision.behavior).toBe("deny");
 	});
 
-	test("malformed settings file doesn't crash tyr check", async () => {
+	test("malformed settings file doesn't crash tyr judge", async () => {
 		await writeProjectSettings(tempDir, {
 			permissions: { allow: ["Bash(echo *)"] },
 		});
@@ -301,7 +301,7 @@ describe("tyr check: settings merge across scopes", () => {
 			cwd: tempDir,
 			command: "echo hello",
 		});
-		const result = await runCheck(JSON.stringify(req), {
+		const result = await runJudge(JSON.stringify(req), {
 			env: isolatedEnv(tempDir),
 		});
 

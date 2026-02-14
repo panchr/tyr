@@ -5,7 +5,7 @@ import { join } from "node:path";
 import type { HookResponse } from "../types.ts";
 import {
 	makePermissionRequest,
-	runCheck,
+	runJudge,
 	writeProjectSettings,
 } from "./helpers/index.ts";
 
@@ -28,7 +28,7 @@ afterEach(async () => {
 	await rm(tempDir, { recursive: true, force: true });
 });
 
-describe("tyr check", () => {
+describe("tyr judge", () => {
 	test("allowed chained command returns allow response", async () => {
 		await writeProjectSettings(tempDir, {
 			permissions: {
@@ -41,7 +41,7 @@ describe("tyr check", () => {
 			command: "git status && echo done",
 		});
 
-		const result = await runCheck(JSON.stringify(req), {
+		const result = await runJudge(JSON.stringify(req), {
 			env: isolatedEnv(tempDir),
 		});
 
@@ -63,7 +63,7 @@ describe("tyr check", () => {
 			command: "git status && rm -rf /",
 		});
 
-		const result = await runCheck(JSON.stringify(req), {
+		const result = await runJudge(JSON.stringify(req), {
 			env: isolatedEnv(tempDir),
 		});
 
@@ -84,7 +84,7 @@ describe("tyr check", () => {
 			command: "curl https://example.com",
 		});
 
-		const result = await runCheck(JSON.stringify(req), {
+		const result = await runJudge(JSON.stringify(req), {
 			env: isolatedEnv(tempDir),
 		});
 
@@ -104,7 +104,7 @@ describe("tyr check", () => {
 			command: "git status && some-unknown-cmd",
 		});
 
-		const result = await runCheck(JSON.stringify(req), {
+		const result = await runJudge(JSON.stringify(req), {
 			env: isolatedEnv(tempDir),
 		});
 
@@ -113,7 +113,7 @@ describe("tyr check", () => {
 	});
 
 	test("malformed JSON input returns exit code 2", async () => {
-		const result = await runCheck("not valid json{{{", {
+		const result = await runJudge("not valid json{{{", {
 			env: isolatedEnv(tempDir),
 		});
 
@@ -121,7 +121,7 @@ describe("tyr check", () => {
 	});
 
 	test("valid JSON but invalid PermissionRequest returns exit code 2", async () => {
-		const result = await runCheck(JSON.stringify({ wrong: "shape" }), {
+		const result = await runJudge(JSON.stringify({ wrong: "shape" }), {
 			env: isolatedEnv(tempDir),
 		});
 
@@ -141,7 +141,7 @@ describe("tyr check", () => {
 			tool_input: { file_path: "/tmp/foo" },
 		} as Parameters<typeof makePermissionRequest>[0]);
 
-		const result = await runCheck(JSON.stringify(req), {
+		const result = await runJudge(JSON.stringify(req), {
 			env: isolatedEnv(tempDir),
 		});
 
@@ -161,7 +161,7 @@ describe("tyr check", () => {
 			command: "npm test",
 		});
 
-		const result = await runCheck(JSON.stringify(req), {
+		const result = await runJudge(JSON.stringify(req), {
 			env: isolatedEnv(tempDir),
 		});
 
@@ -176,7 +176,7 @@ describe("tyr check", () => {
 			command: "echo hello",
 		});
 
-		const result = await runCheck(JSON.stringify(req), {
+		const result = await runJudge(JSON.stringify(req), {
 			env: isolatedEnv(tempDir),
 		});
 

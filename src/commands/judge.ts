@@ -1,14 +1,14 @@
 import { defineCommand } from "citty";
 import { ClaudeAgent } from "../agents/claude.ts";
 import { rejectUnknownArgs } from "../args.ts";
-import { parsePermissionRequest, readStdin } from "../check.ts";
 import { readConfig } from "../config.ts";
+import { parsePermissionRequest, readStdin } from "../judge.ts";
 import { appendLogEntry, type LogEntry } from "../log.ts";
 import { runPipeline } from "../pipeline.ts";
 import { ChainedCommandsProvider } from "../providers/chained-commands.ts";
 import type { HookResponse, Provider } from "../types.ts";
 
-const checkArgs = {
+const judgeArgs = {
 	verbose: {
 		type: "boolean" as const,
 		description: "Emit debug info to stderr",
@@ -17,12 +17,12 @@ const checkArgs = {
 
 export default defineCommand({
 	meta: {
-		name: "check",
+		name: "judge",
 		description: "Evaluate a permission request (hook entry point)",
 	},
-	args: checkArgs,
+	args: judgeArgs,
 	async run({ args, rawArgs }) {
-		rejectUnknownArgs(rawArgs, checkArgs);
+		rejectUnknownArgs(rawArgs, judgeArgs);
 		const verbose = args.verbose ?? false;
 		const startTime = performance.now();
 
