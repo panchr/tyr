@@ -1,7 +1,12 @@
 import { defineCommand } from "citty";
+import { ClaudeAgent } from "../agents/claude.ts";
 import { rejectUnknownArgs } from "../args.ts";
 import { parsePermissionRequest, readStdin } from "../check.ts";
+import { readConfig } from "../config.ts";
 import { appendLogEntry, type LogEntry } from "../log.ts";
+import { runPipeline } from "../pipeline.ts";
+import { ChainedCommandsProvider } from "../providers/chained-commands.ts";
+import type { HookResponse, Provider } from "../types.ts";
 
 const checkArgs = {
 	verbose: {
@@ -54,15 +59,38 @@ export default defineCommand({
 			);
 		}
 
-		// Fall-through: no opinion yet (providers will be wired in later)
+		// Build provider pipeline based on config
+		const config = await readConfig();
+		const agent = new ClaudeAgent();
+		try {
+			await agent.init(req.cwd);
+		} catch (err) {
+			if (verbose) console.error("[tyr] failed to init agent config:", err);
+		}
+
+		const providers: Provider[] = [];
+		if (config.allowChainedCommands) {
+			providers.push(new ChainedCommandsProvider(agent));
+		}
+
+		// Run pipeline
+		const result = await runPipeline(providers, req);
+
+		if (verbose) {
+			console.error(
+				`[tyr] decision=${result.decision} provider=${result.provider ?? "none"}`,
+			);
+		}
+
+		// Log the decision
 		const duration = performance.now() - startTime;
 		const entry: LogEntry = {
 			timestamp: new Date().toISOString(),
 			cwd: req.cwd,
 			tool_name: req.tool_name,
 			tool_input: req.tool_input,
-			decision: "abstain",
-			provider: null,
+			decision: result.decision,
+			provider: result.provider,
 			duration_ms: Math.round(duration),
 			session_id: req.session_id,
 		};
@@ -73,6 +101,18 @@ export default defineCommand({
 			if (verbose) console.error("[tyr] failed to write log:", err);
 		}
 
+		// Emit response to stdout if we have a definitive decision
+		if (result.decision === "allow" || result.decision === "deny") {
+			const response: HookResponse = {
+				hookSpecificOutput: {
+					hookEventName: "PermissionRequest",
+					decision: { behavior: result.decision },
+				},
+			};
+			console.log(JSON.stringify(response));
+		}
+
+		agent.close();
 		process.exit(0);
 	},
 });
