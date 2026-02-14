@@ -5,7 +5,7 @@ import { getLogPath, type LogEntry, readLogEntries } from "../log.ts";
 
 function formatEntry(entry: LogEntry): string {
 	const time = entry.timestamp.replace("T", " ").replace(/\.\d+Z$/, "Z");
-	const cwd = entry.cwd;
+	const cwd = entry.cwd ?? "-";
 	const tool = entry.tool_name;
 	const decision = entry.decision.toUpperCase();
 	const provider = entry.provider ?? "-";
