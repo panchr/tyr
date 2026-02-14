@@ -69,11 +69,9 @@ describe("cli routing", () => {
 		expect(exitCode).toBe(0);
 	});
 
-	test("stub subcommands exit non-zero with not-implemented message", async () => {
-		for (const cmd of ["config"]) {
-			const { stderr, exitCode } = await runCli(cmd);
-			expect(stderr).toContain("not yet implemented");
-			expect(exitCode).not.toBe(0);
-		}
+	test("config with no subcommand shows usage", async () => {
+		const { stderr, exitCode } = await runCli("config");
+		expect(stderr).toContain("No command specified");
+		expect(exitCode).not.toBe(0);
 	});
 });
