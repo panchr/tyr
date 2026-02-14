@@ -19,7 +19,11 @@ function formatEntry(entry: LogEntry): string {
 				? entry.tool_input.file_path
 				: JSON.stringify(entry.tool_input);
 
-	return `${time}  ${decision.padEnd(10)}  ${project.padEnd(30)}  ${tool.padEnd(10)}  ${provider.padEnd(18)}  ${duration.padStart(6)}  ${input}`;
+	const maxInputLen = 80;
+	const truncatedInput =
+		input.length > maxInputLen ? `${input.slice(0, maxInputLen - 1)}…` : input;
+
+	return `${time}  ${decision.padEnd(10)}  ${project.padEnd(30)}  ${tool.padEnd(10)}  ${provider.padEnd(18)}  ${duration.padStart(6)}  ${truncatedInput}`;
 }
 
 const HEADER = `${"TIME".padEnd(21)}  ${"DECISION".padEnd(10)}  ${"PROJECT".padEnd(30)}  ${"TOOL".padEnd(10)}  ${"PROVIDER".padEnd(18)}  ${"DUR".padStart(6)}  INPUT`;
