@@ -11,7 +11,7 @@ Named after the [Norse god of justice](https://en.wikipedia.org/wiki/T%C3%BDr).
 Tyr registers itself as a Claude Code [hook](https://docs.anthropic.com/en/docs/claude-code/hooks) on the `PermissionRequest` event. When Claude Code asks to run a shell command, tyr:
 
 1. Reads your Claude Code allow/deny permission patterns
-2. Parses compound commands (e.g. `git add . && git commit`) and checks each part
+2. Parses compound commands (e.g. `git add . && git commit`) and checks each component
 3. Optionally asks an LLM to evaluate ambiguous commands against your patterns
 4. Returns allow/deny/abstain back to Claude Code
 
@@ -24,21 +24,24 @@ Tyr registers itself as a Claude Code [hook](https://docs.anthropic.com/en/docs/
 
 ```bash
 # Clone and install dependencies
-git clone <repo-url> && cd tyr
+git clone git@github.com:panchr/tyr.git && cd tyr
 bun install
 
+# Build and install the binary to /usr/local/bin
+bun run build
+
 # Register the hook in your project (writes to .claude/settings.json)
-bun run src/index.ts install
+tyr install
 
 # Or install globally (writes to ~/.claude/settings.json)
-bun run src/index.ts install --global
+tyr install --global
 ```
 
 To remove:
 
 ```bash
-bun run src/index.ts uninstall
-bun run src/index.ts uninstall --global
+tyr uninstall
+tyr uninstall --global
 ```
 
 ## Usage
