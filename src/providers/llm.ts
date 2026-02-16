@@ -91,10 +91,18 @@ export class LlmProvider implements Provider {
 
 		const prompt = buildPrompt(req, this.agent);
 
+		// Clear CLAUDECODE env var so claude -p doesn't refuse to run
+		// inside a Claude Code session (tyr is invoked as a hook).
+		const env: Record<string, string | undefined> = {
+			...process.env,
+			CLAUDECODE: undefined,
+		};
+
 		const proc = Bun.spawn(["claude", "-p", "--output-format", "text"], {
 			stdin: new Response(prompt).body,
 			stdout: "pipe",
 			stderr: "pipe",
+			env,
 		});
 
 		const result = await Promise.race([
