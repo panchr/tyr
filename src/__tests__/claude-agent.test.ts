@@ -78,6 +78,13 @@ describe.concurrent("matchPattern", () => {
 		expect(matchPattern("echo hello.world", "echo hello.world")).toBe(true);
 		expect(matchPattern("echo hello.world", "echo helloXworld")).toBe(false);
 	});
+
+	test("consecutive wildcards are collapsed to avoid ReDoS", () => {
+		expect(matchPattern("git **", "git push")).toBe(true);
+		expect(matchPattern("*****", "anything")).toBe(true);
+		// Should complete quickly (no catastrophic backtracking)
+		expect(matchPattern("*****", "a".repeat(100))).toBe(true);
+	});
 });
 
 describe("isCommandAllowed", () => {

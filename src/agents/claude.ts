@@ -26,7 +26,7 @@ export function extractBashPatterns(rules: unknown[]): string[] {
  *  `*` in the pattern matches any sequence of characters. */
 export function matchPattern(pattern: string, command: string): boolean {
 	const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-	const regex = new RegExp(`^${escaped.replace(/\*/g, ".*")}$`);
+	const regex = new RegExp(`^${escaped.replace(/\*+/g, ".*")}$`);
 	return regex.test(command);
 }
 
