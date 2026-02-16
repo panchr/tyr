@@ -43,16 +43,6 @@ export interface Provider {
 	checkPermission(req: PermissionRequest): Promise<ProviderResult>;
 }
 
-// -- Agent config interface --
-
-/** An agent's permission rules, read from its configuration files. */
-export interface AgentConfig {
-	/** Glob/regex patterns that are explicitly allowed. */
-	allowPatterns: string[];
-	/** Glob/regex patterns that are explicitly denied. */
-	denyPatterns: string[];
-}
-
 // -- Tyr's own config --
 
 export const TyrConfigSchema = z.object({
