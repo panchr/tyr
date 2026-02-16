@@ -73,18 +73,30 @@ describe.concurrent("HookResponse", () => {
 		};
 		expect(response.hookSpecificOutput.decision.behavior).toBe("deny");
 	});
+
+	test("deny response can include message", () => {
+		const response: HookResponse = {
+			hookSpecificOutput: {
+				hookEventName: "PermissionRequest",
+				decision: { behavior: "deny", message: "matches denied pattern" },
+			},
+		};
+		expect(response.hookSpecificOutput.decision.message).toBe(
+			"matches denied pattern",
+		);
+	});
 });
 
 describe.concurrent("Provider", () => {
 	test("can implement the Provider interface", async () => {
 		const stubProvider: Provider = {
 			name: "stub",
-			checkPermission: async () => "abstain",
+			checkPermission: async () => ({ decision: "abstain" }),
 		};
 		const result = await stubProvider.checkPermission({
 			...({} as PermissionRequest),
 		});
-		expect(result).toBe("abstain");
+		expect(result.decision).toBe("abstain");
 	});
 });
 

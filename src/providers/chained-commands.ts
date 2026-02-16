@@ -1,8 +1,8 @@
 import type { ClaudeAgent } from "../agents/claude.ts";
 import type {
 	PermissionRequest,
-	PermissionResult,
 	Provider,
+	ProviderResult,
 } from "../types.ts";
 import { parseCommands } from "./shell-parser.ts";
 
@@ -17,22 +17,23 @@ export class ChainedCommandsProvider implements Provider {
 
 	constructor(private agent: ClaudeAgent) {}
 
-	async checkPermission(req: PermissionRequest): Promise<PermissionResult> {
-		if (req.tool_name !== "Bash") return "abstain";
+	async checkPermission(req: PermissionRequest): Promise<ProviderResult> {
+		if (req.tool_name !== "Bash") return { decision: "abstain" };
 
 		const command = req.tool_input.command;
-		if (typeof command !== "string" || command.trim() === "") return "abstain";
+		if (typeof command !== "string" || command.trim() === "")
+			return { decision: "abstain" };
 
 		const subCommands = parseCommands(command);
-		if (subCommands.length === 0) return "abstain";
+		if (subCommands.length === 0) return { decision: "abstain" };
 
 		let allAllowed = true;
 		for (const sub of subCommands) {
 			const result = this.agent.isCommandAllowed(sub.command);
-			if (result === "deny") return "deny";
+			if (result === "deny") return { decision: "deny" };
 			if (result !== "allow") allAllowed = false;
 		}
 
-		return allAllowed ? "allow" : "abstain";
+		return { decision: allAllowed ? "allow" : "abstain" };
 	}
 }

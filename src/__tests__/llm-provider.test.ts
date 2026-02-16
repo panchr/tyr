@@ -126,7 +126,7 @@ describe.concurrent("LlmProvider", () => {
 		} as Parameters<typeof makePermissionRequest>[0]);
 
 		const result = await provider.checkPermission(req);
-		expect(result).toBe("abstain");
+		expect(result.decision).toBe("abstain");
 	});
 
 	test("abstains for empty command", async () => {
@@ -136,7 +136,7 @@ describe.concurrent("LlmProvider", () => {
 
 		const req = makePermissionRequest({ command: "" });
 		const result = await provider.checkPermission(req);
-		expect(result).toBe("abstain");
+		expect(result.decision).toBe("abstain");
 	});
 
 	test("abstains for missing command", async () => {
@@ -147,7 +147,7 @@ describe.concurrent("LlmProvider", () => {
 		const req = makePermissionRequest();
 		req.tool_input = {};
 		const result = await provider.checkPermission(req);
-		expect(result).toBe("abstain");
+		expect(result.decision).toBe("abstain");
 	});
 
 	test("uses Bun.spawn with array args (no shell interpolation)", async () => {

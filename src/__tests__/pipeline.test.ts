@@ -18,11 +18,15 @@ function makeReq(command = "echo hello"): PermissionRequest {
 	};
 }
 
-function makeProvider(name: string, result: PermissionResult): Provider {
+function makeProvider(
+	name: string,
+	decision: PermissionResult,
+	reason?: string,
+): Provider {
 	return {
 		name,
 		async checkPermission() {
-			return result;
+			return { decision, reason };
 		},
 	};
 }
@@ -42,7 +46,11 @@ describe.concurrent("runPipeline", () => {
 			[makeProvider("a", "abstain"), makeProvider("b", "allow")],
 			makeReq(),
 		);
-		expect(result).toEqual({ decision: "allow", provider: "b" });
+		expect(result).toEqual({
+			decision: "allow",
+			provider: "b",
+			reason: undefined,
+		});
 	});
 
 	test("first deny wins", async () => {
@@ -50,7 +58,11 @@ describe.concurrent("runPipeline", () => {
 			[makeProvider("a", "deny"), makeProvider("b", "allow")],
 			makeReq(),
 		);
-		expect(result).toEqual({ decision: "deny", provider: "a" });
+		expect(result).toEqual({
+			decision: "deny",
+			provider: "a",
+			reason: undefined,
+		});
 	});
 
 	test("all abstain returns abstain with no provider", async () => {
@@ -71,7 +83,11 @@ describe.concurrent("runPipeline", () => {
 			[makeProvider("first", "allow"), makeProvider("second", "deny")],
 			makeReq(),
 		);
-		expect(result).toEqual({ decision: "allow", provider: "first" });
+		expect(result).toEqual({
+			decision: "allow",
+			provider: "first",
+			reason: undefined,
+		});
 	});
 
 	test("error provider is treated as abstain", async () => {
@@ -79,7 +95,11 @@ describe.concurrent("runPipeline", () => {
 			[makeErrorProvider("broken"), makeProvider("fallback", "allow")],
 			makeReq(),
 		);
-		expect(result).toEqual({ decision: "allow", provider: "fallback" });
+		expect(result).toEqual({
+			decision: "allow",
+			provider: "fallback",
+			reason: undefined,
+		});
 	});
 
 	test("all errors returns abstain", async () => {
@@ -94,12 +114,12 @@ describe.concurrent("runPipeline", () => {
 		const calls: string[] = [];
 		const trackingProvider = (
 			name: string,
-			result: PermissionResult,
+			decision: PermissionResult,
 		): Provider => ({
 			name,
 			async checkPermission() {
 				calls.push(name);
-				return result;
+				return { decision };
 			},
 		});
 
@@ -114,5 +134,29 @@ describe.concurrent("runPipeline", () => {
 
 		// Third should not be called because second returned allow
 		expect(calls).toEqual(["first", "second"]);
+	});
+
+	test("reason is threaded through on deny", async () => {
+		const result = await runPipeline(
+			[makeProvider("llm", "deny", "matches denied pattern rm *")],
+			makeReq(),
+		);
+		expect(result).toEqual({
+			decision: "deny",
+			provider: "llm",
+			reason: "matches denied pattern rm *",
+		});
+	});
+
+	test("reason is threaded through on allow", async () => {
+		const result = await runPipeline(
+			[makeProvider("llm", "allow", "matches allowed pattern git *")],
+			makeReq(),
+		);
+		expect(result).toEqual({
+			decision: "allow",
+			provider: "llm",
+			reason: "matches allowed pattern git *",
+		});
 	});
 });

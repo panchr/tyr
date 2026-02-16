@@ -118,6 +118,9 @@ describe("LLM provider E2E", () => {
 		expect(result.exitCode).toBe(0);
 		const response = JSON.parse(result.stdout) as HookResponse;
 		expect(response.hookSpecificOutput.decision.behavior).toBe("deny");
+		expect(response.hookSpecificOutput.decision.message).toBe(
+			"dangerous command",
+		);
 	});
 
 	test("LLM error falls through with empty stdout", async () => {

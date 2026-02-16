@@ -18,12 +18,19 @@ export type PermissionRequest = z.infer<typeof PermissionRequestSchema>;
 /** A provider's verdict on a permission request. */
 export type PermissionResult = "allow" | "deny" | "abstain";
 
+/** Extended result from a provider, carrying an optional reason. */
+export interface ProviderResult {
+	decision: PermissionResult;
+	reason?: string;
+}
+
 /** The JSON structure tyr writes to stdout to communicate a decision back to Claude. */
 export interface HookResponse {
 	hookSpecificOutput: {
 		hookEventName: "PermissionRequest";
 		decision: {
 			behavior: "allow" | "deny";
+			message?: string;
 		};
 	};
 }
@@ -33,7 +40,7 @@ export interface HookResponse {
 /** A strategy for evaluating permission requests. */
 export interface Provider {
 	readonly name: string;
-	checkPermission(req: PermissionRequest): Promise<PermissionResult>;
+	checkPermission(req: PermissionRequest): Promise<ProviderResult>;
 }
 
 // -- Agent config interface --

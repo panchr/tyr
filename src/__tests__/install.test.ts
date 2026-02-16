@@ -9,17 +9,17 @@ import {
 	writeSettings,
 } from "../install.ts";
 
-let tempDir: string;
-
-beforeEach(async () => {
-	tempDir = await mkdtemp(join(tmpdir(), "tyr-install-test-"));
-});
-
-afterEach(async () => {
-	await rm(tempDir, { recursive: true, force: true });
-});
-
 describe("readSettings", () => {
+	let tempDir: string;
+
+	beforeEach(async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "tyr-install-test-"));
+	});
+
+	afterEach(async () => {
+		await rm(tempDir, { recursive: true, force: true });
+	});
+
 	test("returns {} for missing file", async () => {
 		const result = await readSettings(join(tempDir, "nope.json"));
 		expect(result).toEqual({});
@@ -117,6 +117,16 @@ describe.concurrent("mergeHook", () => {
 });
 
 describe("writeSettings", () => {
+	let tempDir: string;
+
+	beforeEach(async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "tyr-install-test-"));
+	});
+
+	afterEach(async () => {
+		await rm(tempDir, { recursive: true, force: true });
+	});
+
 	test("creates file and parent directories", async () => {
 		const path = join(tempDir, "sub", "dir", "settings.json");
 		await writeSettings(path, { test: true });
@@ -126,6 +136,16 @@ describe("writeSettings", () => {
 });
 
 describe("tyr install (integration)", () => {
+	let tempDir: string;
+
+	beforeEach(async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "tyr-install-test-"));
+	});
+
+	afterEach(async () => {
+		await rm(tempDir, { recursive: true, force: true });
+	});
+
 	async function runInstall(
 		...args: string[]
 	): Promise<{ stdout: string; stderr: string; exitCode: number }> {

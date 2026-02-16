@@ -107,10 +107,16 @@ export default defineCommand({
 
 		// Emit response to stdout if we have a definitive decision
 		if (result.decision === "allow" || result.decision === "deny") {
+			const decision: HookResponse["hookSpecificOutput"]["decision"] = {
+				behavior: result.decision,
+			};
+			if (result.decision === "deny" && result.reason) {
+				decision.message = result.reason;
+			}
 			const response: HookResponse = {
 				hookSpecificOutput: {
 					hookEventName: "PermissionRequest",
-					decision: { behavior: result.decision },
+					decision,
 				},
 			};
 			console.log(JSON.stringify(response));

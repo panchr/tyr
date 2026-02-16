@@ -52,73 +52,73 @@ describe("ChainedCommandsProvider", () => {
 		const result = await provider.checkPermission(
 			makeReq("git status && npm test"),
 		);
-		expect(result).toBe("allow");
+		expect(result.decision).toBe("allow");
 	});
 
 	test("one denied command in chain returns deny", async () => {
 		const result = await provider.checkPermission(
 			makeReq("git status && rm -rf /"),
 		);
-		expect(result).toBe("deny");
+		expect(result.decision).toBe("deny");
 	});
 
 	test("unknown command in chain returns abstain", async () => {
 		const result = await provider.checkPermission(
 			makeReq("git status && curl example.com"),
 		);
-		expect(result).toBe("abstain");
+		expect(result.decision).toBe("abstain");
 	});
 
 	test("single allowed command returns allow", async () => {
 		const result = await provider.checkPermission(makeReq("git status"));
-		expect(result).toBe("allow");
+		expect(result.decision).toBe("allow");
 	});
 
 	test("single denied command returns deny", async () => {
 		const result = await provider.checkPermission(makeReq("rm -rf /tmp"));
-		expect(result).toBe("deny");
+		expect(result.decision).toBe("deny");
 	});
 
 	test("single unknown command returns abstain", async () => {
 		const result = await provider.checkPermission(makeReq("curl example.com"));
-		expect(result).toBe("abstain");
+		expect(result.decision).toBe("abstain");
 	});
 
 	test("non-Bash tool returns abstain", async () => {
 		const result = await provider.checkPermission(makeReq("anything", "Read"));
-		expect(result).toBe("abstain");
+		expect(result.decision).toBe("abstain");
 	});
 
 	test("empty command returns abstain", async () => {
 		const result = await provider.checkPermission(makeReq(""));
-		expect(result).toBe("abstain");
+		expect(result.decision).toBe("abstain");
 	});
 
 	test("piped commands all allowed returns allow", async () => {
 		const result = await provider.checkPermission(
 			makeReq("echo hello | echo world"),
 		);
-		expect(result).toBe("allow");
+		expect(result.decision).toBe("allow");
 	});
 
 	test("deny wins even in pipes", async () => {
 		const result = await provider.checkPermission(
 			makeReq("echo hello | rm -rf /"),
 		);
-		expect(result).toBe("deny");
+		expect(result.decision).toBe("deny");
 	});
 
 	test("subshell commands are checked", async () => {
 		const result = await provider.checkPermission(
 			makeReq("(git status && echo done)"),
 		);
-		expect(result).toBe("allow");
+		expect(result.decision).toBe("allow");
 	});
 
 	test("deny inside subshell returns deny", async () => {
 		const result = await provider.checkPermission(
 			makeReq("(git status && rm -rf /)"),
 		);
-		expect(result).toBe("deny");
+		expect(result.decision).toBe("deny");
 	});
 });

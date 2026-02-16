@@ -1,8 +1,8 @@
 import type { ClaudeAgent } from "../agents/claude.ts";
 import type {
 	PermissionRequest,
-	PermissionResult,
 	Provider,
+	ProviderResult,
 } from "../types.ts";
 
 /** Expected shape of the LLM's JSON response. */
@@ -20,25 +20,26 @@ export function buildPrompt(
 	const command =
 		typeof req.tool_input.command === "string" ? req.tool_input.command : "";
 
-	return `You are a security reviewer for a software development environment.
+	return `You are a pattern-matching permission checker.
 
-A coding assistant is requesting permission to run a shell command. Your job is to evaluate whether the command is safe and appropriate.
+A coding assistant is requesting permission to run a shell command. Your job is to decide whether this command is similar to an already-allowed pattern or similar to an already-denied pattern.
 
 ## Context
 - Working directory: ${req.cwd}
 - Tool: ${req.tool_name}
 - Command: ${command}
 
-## Already configured permissions
+## Configured permission patterns
 - Allowed patterns: ${JSON.stringify(info.allow)}
 - Denied patterns: ${JSON.stringify(info.deny)}
 
-The command did not match any of the above patterns, so you must make a judgment call.
+The command did not exactly match any pattern, so you must judge by similarity.
 
-## Guidelines
-- ALLOW commands that are clearly safe development operations (building, testing, linting, reading files, navigating directories, etc.)
-- DENY commands that could be destructive, exfiltrate data, modify system configuration, access sensitive files outside the project, or execute unknown/suspicious binaries.
-- When in doubt, DENY.
+## Rules
+- If the command is a variation of one of the ALLOWED patterns → allow.
+- If the command is a variation of one of the DENIED patterns → deny.
+- If the command is not clearly similar to either set of patterns → deny (fail-closed).
+- Only allow commands that are clearly within the spirit of an existing allowed pattern.
 
 Respond with ONLY a JSON object in this exact format, no other text:
 {"decision": "allow", "reason": "brief explanation"}
@@ -83,11 +84,12 @@ export class LlmProvider implements Provider {
 		private timeoutMs: number = DEFAULT_TIMEOUT_MS,
 	) {}
 
-	async checkPermission(req: PermissionRequest): Promise<PermissionResult> {
-		if (req.tool_name !== "Bash") return "abstain";
+	async checkPermission(req: PermissionRequest): Promise<ProviderResult> {
+		if (req.tool_name !== "Bash") return { decision: "abstain" };
 
 		const command = req.tool_input.command;
-		if (typeof command !== "string" || command.trim() === "") return "abstain";
+		if (typeof command !== "string" || command.trim() === "")
+			return { decision: "abstain" };
 
 		const prompt = buildPrompt(req, this.agent);
 
@@ -133,12 +135,12 @@ export class LlmProvider implements Provider {
 		]);
 
 		if (result.timedOut || result.exitCode !== 0) {
-			return "abstain";
+			return { decision: "abstain" };
 		}
 
-		const decision = parseLlmResponse(result.stdout);
-		if (!decision) return "abstain";
+		const llmDecision = parseLlmResponse(result.stdout);
+		if (!llmDecision) return { decision: "abstain" };
 
-		return decision.decision;
+		return { decision: llmDecision.decision, reason: llmDecision.reason };
 	}
 }
