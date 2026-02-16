@@ -66,6 +66,6 @@ describe.concurrent("subprocess helpers", () => {
 	test("runCli runs arbitrary subcommands", async () => {
 		const result = await runCli("--version");
 		expect(result.exitCode).toBe(0);
-		expect(result.stdout.trim()).toBe("0.0.0");
+		expect(result.stdout.trim()).toContain("0.1.0");
 	});
 });

@@ -32,7 +32,7 @@ describe.concurrent("cli routing", () => {
 
 	test("--version prints version", async () => {
 		const { stdout, exitCode } = await runCli("--version");
-		expect(stdout.trim()).toBe("0.0.0");
+		expect(stdout.trim()).toContain("0.1.0");
 		expect(exitCode).toBe(0);
 	});
 

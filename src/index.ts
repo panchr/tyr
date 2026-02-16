@@ -7,11 +7,12 @@ import install from "./commands/install.ts";
 import judge from "./commands/judge.ts";
 import log from "./commands/log.ts";
 import version from "./commands/version.ts";
+import { VERSION } from "./version.ts";
 
 const main = defineCommand({
 	meta: {
 		name: "tyr",
-		version: "0.0.0",
+		version: VERSION,
 		description: "Intelligent permission management for Claude Code hooks",
 	},
 	subCommands: {
