@@ -16,14 +16,33 @@ interface LlmDecision {
 export function buildPrompt(
 	req: PermissionRequest,
 	agent: ClaudeAgent,
+	canDeny: boolean,
 ): string {
 	const info = agent.getDebugInfo();
 	const command =
 		typeof req.tool_input.command === "string" ? req.tool_input.command : "";
 
+	const rules = canDeny
+		? `- If the command is a variation of one of the ALLOWED patterns → allow.
+- If the command is a variation of one of the DENIED patterns → deny.
+- If the command is not clearly similar to either set of patterns → deny (fail-closed).
+- Only allow commands that are clearly within the spirit of an existing allowed pattern.`
+		: `- If the command is a variation of one of the ALLOWED patterns → allow.
+- If the command is NOT clearly similar to an allowed pattern → abstain.
+- Only allow commands that are clearly within the spirit of an existing allowed pattern.
+- You CANNOT deny commands. Your only options are allow or abstain.`;
+
+	const responseFormat = canDeny
+		? `{"decision": "allow", "reason": "brief explanation"}
+or
+{"decision": "deny", "reason": "brief explanation"}`
+		: `{"decision": "allow", "reason": "brief explanation"}
+or
+{"decision": "abstain", "reason": "brief explanation"}`;
+
 	return `You are a pattern-matching permission checker.
 
-A coding assistant is requesting permission to run a shell command. Your job is to decide whether this command is similar to an already-allowed pattern or similar to an already-denied pattern.
+A coding assistant is requesting permission to run a shell command. Your job is to decide whether this command is similar to an already-allowed pattern.
 
 ## Context
 - Working directory: ${req.cwd}
@@ -37,15 +56,10 @@ A coding assistant is requesting permission to run a shell command. Your job is 
 The command did not exactly match any pattern, so you must judge by similarity.
 
 ## Rules
-- If the command is a variation of one of the ALLOWED patterns → allow.
-- If the command is a variation of one of the DENIED patterns → deny.
-- If the command is not clearly similar to either set of patterns → deny (fail-closed).
-- Only allow commands that are clearly within the spirit of an existing allowed pattern.
+${rules}
 
 Respond with ONLY a JSON object in this exact format, no other text:
-{"decision": "allow", "reason": "brief explanation"}
-or
-{"decision": "deny", "reason": "brief explanation"}`;
+${responseFormat}`;
 }
 
 const S_TO_MS = 1000;
@@ -82,14 +96,16 @@ export class LlmProvider implements Provider {
 
 	private timeoutMs: number;
 	private model: string;
+	private canDeny: boolean;
 
 	constructor(
 		private agent: ClaudeAgent,
-		config: Pick<TyrConfig, "llmModel" | "llmTimeout">,
+		config: Pick<TyrConfig, "llmModel" | "llmTimeout" | "llmCanDeny">,
 		private verbose: boolean = false,
 	) {
 		this.model = config.llmModel;
 		this.timeoutMs = config.llmTimeout * S_TO_MS;
+		this.canDeny = config.llmCanDeny;
 	}
 
 	async checkPermission(req: PermissionRequest): Promise<ProviderResult> {
@@ -99,7 +115,7 @@ export class LlmProvider implements Provider {
 		if (typeof command !== "string" || command.trim() === "")
 			return { decision: "abstain" };
 
-		const prompt = buildPrompt(req, this.agent);
+		const prompt = buildPrompt(req, this.agent, this.canDeny);
 
 		// Clear CLAUDECODE env var so claude -p doesn't refuse to run
 		// inside a Claude Code session (tyr is invoked as a hook).
@@ -163,6 +179,11 @@ export class LlmProvider implements Provider {
 
 		const llmDecision = parseLlmResponse(result.stdout);
 		if (!llmDecision) return { decision: "abstain" };
+
+		// When canDeny is false, convert deny→abstain so the user gets prompted
+		if (!this.canDeny && llmDecision.decision === "deny") {
+			return { decision: "abstain", reason: llmDecision.reason };
+		}
 
 		return { decision: llmDecision.decision, reason: llmDecision.reason };
 	}

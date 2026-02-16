@@ -111,6 +111,7 @@ describe.concurrent("TyrConfig", () => {
 			llmModel: "haiku",
 			llmEndpoint: "https://openrouter.ai/api/v1",
 			llmTimeout: 10,
+			llmCanDeny: false,
 		});
 	});
 

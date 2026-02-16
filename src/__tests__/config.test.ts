@@ -35,6 +35,7 @@ describe.concurrent("isValidKey", () => {
 		expect(isValidKey("llmModel")).toBe(true);
 		expect(isValidKey("llmEndpoint")).toBe(true);
 		expect(isValidKey("llmTimeout")).toBe(true);
+		expect(isValidKey("llmCanDeny")).toBe(true);
 	});
 
 	test("rejects invalid keys", () => {

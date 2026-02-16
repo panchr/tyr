@@ -7,13 +7,14 @@ import { makePermissionRequest } from "./helpers/index.ts";
 const llmConfig = {
 	llmModel: DEFAULT_TYR_CONFIG.llmModel,
 	llmTimeout: DEFAULT_TYR_CONFIG.llmTimeout,
+	llmCanDeny: DEFAULT_TYR_CONFIG.llmCanDeny,
 };
 
 describe.concurrent("buildPrompt", () => {
 	test("includes the command in the prompt", () => {
 		const agent = new ClaudeAgent();
 		const req = makePermissionRequest({ command: "rm -rf /" });
-		const prompt = buildPrompt(req, agent);
+		const prompt = buildPrompt(req, agent, false);
 		expect(prompt).toContain("rm -rf /");
 		agent.close();
 	});
@@ -39,7 +40,7 @@ describe.concurrent("buildPrompt", () => {
 
 			await agent.init(tempDir, [join(tempDir, ".claude", "settings.json")]);
 			const req = makePermissionRequest({ cwd: tempDir, command: "curl foo" });
-			const prompt = buildPrompt(req, agent);
+			const prompt = buildPrompt(req, agent, false);
 
 			expect(prompt).toContain("git *");
 			expect(prompt).toContain("npm test");
@@ -56,8 +57,26 @@ describe.concurrent("buildPrompt", () => {
 			cwd: "/home/user/project",
 			command: "ls",
 		});
-		const prompt = buildPrompt(req, agent);
+		const prompt = buildPrompt(req, agent, false);
 		expect(prompt).toContain("/home/user/project");
+		agent.close();
+	});
+
+	test("canDeny=false prompt uses allow/abstain", () => {
+		const agent = new ClaudeAgent();
+		const req = makePermissionRequest({ command: "echo hi" });
+		const prompt = buildPrompt(req, agent, false);
+		expect(prompt).toContain("abstain");
+		expect(prompt).not.toContain('"deny"');
+		agent.close();
+	});
+
+	test("canDeny=true prompt uses allow/deny", () => {
+		const agent = new ClaudeAgent();
+		const req = makePermissionRequest({ command: "echo hi" });
+		const prompt = buildPrompt(req, agent, true);
+		expect(prompt).toContain('"deny"');
+		expect(prompt).not.toContain("abstain");
 		agent.close();
 	});
 });
@@ -169,6 +188,7 @@ describe("LlmProvider spawn", () => {
 		const provider = new LlmProvider(agent, {
 			llmModel: "haiku",
 			llmTimeout: 1,
+			llmCanDeny: false,
 		});
 
 		const stdout = new ReadableStream({

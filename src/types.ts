@@ -62,6 +62,8 @@ export const TyrConfigSchema = z.object({
 	llmEndpoint: z.string().default("https://openrouter.ai/api/v1"),
 	/** LLM request timeout in seconds. */
 	llmTimeout: z.number().default(10),
+	/** Whether the LLM provider can deny requests. When false, LLM can only allow or abstain. */
+	llmCanDeny: z.boolean().default(false),
 });
 
 export type TyrConfig = z.infer<typeof TyrConfigSchema>;
