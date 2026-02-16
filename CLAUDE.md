@@ -12,6 +12,12 @@ bd close <id>         # Complete work
 bd sync               # Sync with git
 ```
 
+## Code Review
+
+After making code changes, **always** run the `code-reviewer` agent before committing. Group changed files by language and invoke the agent separately for each group.
+
+Example: if you changed `.ts` files and a `.sh` file, run two review agents in parallel — one for the TypeScript files and one for the shell file.
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git commit` succeeds.
