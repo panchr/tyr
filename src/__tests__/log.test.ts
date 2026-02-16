@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { appendFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { appendLogEntry, type LogEntry, readLogEntries } from "../log.ts";
@@ -84,6 +84,18 @@ describe("log", () => {
 		await setupTempLog();
 		const entries = await readLogEntries();
 		expect(entries).toEqual([]);
+	});
+
+	test("readLogEntries skips malformed JSON lines", async () => {
+		await setupTempLog();
+		await appendLogEntry(makeEntry({ session_id: "valid1" }));
+		await appendFile(logFile, "not valid json{{{corrupt\n", "utf-8");
+		await appendLogEntry(makeEntry({ session_id: "valid2" }));
+
+		const entries = await readLogEntries();
+		expect(entries).toHaveLength(2);
+		expect(entries[0]?.session_id).toBe("valid1");
+		expect(entries[1]?.session_id).toBe("valid2");
 	});
 
 	test("log entry schema has all required fields", async () => {

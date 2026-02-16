@@ -38,9 +38,13 @@ export async function readLogEntries(last?: number): Promise<LogEntry[]> {
 	const lines = text.trim().split("\n").filter(Boolean);
 	const entries: LogEntry[] = [];
 	for (const line of lines) {
-		const parsed = LogEntrySchema.safeParse(JSON.parse(line));
-		if (parsed.success) {
-			entries.push(parsed.data);
+		try {
+			const parsed = LogEntrySchema.safeParse(JSON.parse(line));
+			if (parsed.success) {
+				entries.push(parsed.data);
+			}
+		} catch {
+			// Skip malformed JSON lines (truncated writes, corruption)
 		}
 	}
 
