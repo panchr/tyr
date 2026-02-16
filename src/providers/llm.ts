@@ -82,6 +82,7 @@ export class LlmProvider implements Provider {
 	constructor(
 		private agent: ClaudeAgent,
 		private timeoutMs: number = DEFAULT_TIMEOUT_MS,
+		private verbose: boolean = false,
 	) {}
 
 	async checkPermission(req: PermissionRequest): Promise<ProviderResult> {
@@ -136,6 +137,16 @@ export class LlmProvider implements Provider {
 				}, this.timeoutMs);
 			}),
 		]);
+
+		if (this.verbose) {
+			console.error(
+				`[tyr] llm: exitCode=${result.exitCode} timedOut=${result.timedOut}`,
+			);
+			if (result.stdout)
+				console.error(`[tyr] llm stdout: ${result.stdout.trim()}`);
+			if (result.stderr)
+				console.error(`[tyr] llm stderr: ${result.stderr.trim()}`);
+		}
 
 		if (result.timedOut || result.exitCode !== 0) {
 			return { decision: "abstain" };

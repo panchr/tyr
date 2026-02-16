@@ -12,6 +12,7 @@
     "build": "bun run scripts/build.ts",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
+    "test:smoke": "bun test ./src/__tests__/smoke.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
