@@ -10,6 +10,14 @@ import {
 	writeSettings,
 } from "../install.ts";
 
+/** Extract PermissionRequest hook entries from a settings object. */
+function getPermReqs(
+	settings: Record<string, unknown>,
+): Record<string, unknown>[] {
+	const hooks = settings.hooks as Record<string, unknown>;
+	return hooks.PermissionRequest as Record<string, unknown>[];
+}
+
 describe("readSettings", () => {
 	let tempDir: string;
 
@@ -74,9 +82,7 @@ describe.concurrent("mergeHook", () => {
 	test("adds hooks to empty settings", () => {
 		const result = mergeHook({});
 		expect(result.hooks).toBeDefined();
-		const hooks = result.hooks as Record<string, unknown>;
-		const permReqs = hooks.PermissionRequest as unknown[];
-		expect(permReqs).toHaveLength(1);
+		expect(getPermReqs(result)).toHaveLength(1);
 	});
 
 	test("preserves existing hooks", () => {
@@ -88,9 +94,7 @@ describe.concurrent("mergeHook", () => {
 			},
 		};
 		const result = mergeHook(existing);
-		const hooks = result.hooks as Record<string, unknown>;
-		const permReqs = hooks.PermissionRequest as unknown[];
-		expect(permReqs).toHaveLength(2);
+		expect(getPermReqs(result)).toHaveLength(2);
 	});
 
 	test("replaces existing tyr entry instead of duplicating", () => {
@@ -106,9 +110,7 @@ describe.concurrent("mergeHook", () => {
 			},
 		};
 		const result = mergeHook(existing);
-		const hooks = result.hooks as Record<string, unknown>;
-		const permReqs = hooks.PermissionRequest as unknown[];
-		expect(permReqs).toHaveLength(2);
+		expect(getPermReqs(result)).toHaveLength(2);
 	});
 
 	test("preserves non-hook settings", () => {
@@ -260,9 +262,7 @@ describe.concurrent("removeHook", () => {
 			},
 		});
 		expect(result).not.toBeNull();
-		const hooks = result!.hooks as Record<string, unknown>;
-		const permReqs = hooks.PermissionRequest as unknown[];
-		expect(permReqs).toHaveLength(1);
+		expect(getPermReqs(result!)).toHaveLength(1);
 	});
 
 	test("removes PermissionRequest key when tyr was the only entry", () => {
@@ -293,9 +293,9 @@ describe.concurrent("removeHook", () => {
 			},
 		});
 		expect(result).not.toBeNull();
-		const hooks = result!.hooks as Record<string, unknown>;
-		expect(hooks.PermissionRequest).toBeUndefined();
-		expect(hooks.PostToolUse).toBeDefined();
+		const resultHooks = result!.hooks as Record<string, unknown>;
+		expect(resultHooks.PermissionRequest).toBeUndefined();
+		expect(resultHooks.PostToolUse).toBeDefined();
 	});
 
 	test("preserves non-hook settings", () => {
@@ -400,9 +400,8 @@ describe("tyr uninstall (integration)", () => {
 
 		const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
 		expect(isInstalled(settings)).toBe(false);
-		const hooks = settings.hooks as Record<string, unknown>;
-		const permReqs = hooks.PermissionRequest as unknown[];
+		const permReqs = getPermReqs(settings);
 		expect(permReqs).toHaveLength(1);
-		expect((permReqs[0] as Record<string, unknown>).matcher).toBe("Write");
+		expect(permReqs[0]!.matcher).toBe("Write");
 	}, { timeout: 10_000 });
 });
