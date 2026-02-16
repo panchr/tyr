@@ -12,11 +12,16 @@ bd close <id>         # Complete work
 bd sync               # Sync with git
 ```
 
-## Code Review
+## Dev Workflow
 
-After making code changes, **always** run the `code-reviewer` agent before committing. Group changed files by language and invoke the agent separately for each group.
+After every task, follow this workflow in order:
 
-Example: if you changed `.ts` files and a `.sh` file, run two review agents in parallel — one for the TypeScript files and one for the shell file.
+1. **Make code changes**
+2. **Add tests** if needed
+3. **Run `bun lint`** — fix any issues before proceeding
+4. **Run `bun test`** — fix any issues before proceeding
+5. **Run `code-reviewer` agent** — fix any issues before proceeding. Group changed files by language and invoke the agent separately for each group (e.g., `.ts` files and `.sh` files get separate reviews in parallel)
+6. **Commit and close beads issue** (if there is one) — see commit rules below
 
 ## Landing the Plane (Session Completion)
 
@@ -25,7 +30,7 @@ Example: if you changed `.ts` files and a `.sh` file, run two review agents in p
 **MANDATORY WORKFLOW:**
 
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
+2. **Run dev workflow above** (if code changed)
 3. **Update issue status** - Close finished work, update in-progress items
 4. **Clean up** - Clear stashes
 5. **Verify** - All changes committed
