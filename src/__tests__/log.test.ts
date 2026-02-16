@@ -3,6 +3,7 @@ import { appendFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { appendLogEntry, type LogEntry, readLogEntries } from "../log.ts";
+import { saveEnv } from "./helpers/index.ts";
 
 function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
 	return {
@@ -20,14 +21,10 @@ function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
 
 let tempDir: string;
 let logFile: string;
-const origEnv = process.env.TYR_LOG_FILE;
+const restoreEnv = saveEnv("TYR_LOG_FILE");
 
 afterEach(async () => {
-	if (origEnv === undefined) {
-		delete process.env.TYR_LOG_FILE;
-	} else {
-		process.env.TYR_LOG_FILE = origEnv;
-	}
+	restoreEnv();
 	if (tempDir) {
 		await rm(tempDir, { recursive: true, force: true });
 	}

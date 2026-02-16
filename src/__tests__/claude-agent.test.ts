@@ -8,6 +8,7 @@ import {
 	matchPattern,
 	settingsPaths,
 } from "../agents/claude.ts";
+import { saveEnv } from "./helpers/index.ts";
 
 /** Build an isolated paths array using only files under tempDir. */
 function testPaths(tempDir: string): string[] {
@@ -213,7 +214,7 @@ describe("init with settings files", () => {
 describe("CLAUDE_CONFIG_DIR", () => {
 	let tempDir: string;
 	let agent: ClaudeAgent;
-	const originalEnv = process.env.CLAUDE_CONFIG_DIR;
+	const restoreEnv = saveEnv("CLAUDE_CONFIG_DIR");
 
 	beforeEach(async () => {
 		tempDir = await mkdtemp(join(tmpdir(), "tyr-claude-configdir-"));
@@ -222,11 +223,7 @@ describe("CLAUDE_CONFIG_DIR", () => {
 
 	afterEach(async () => {
 		agent.close();
-		if (originalEnv === undefined) {
-			delete process.env.CLAUDE_CONFIG_DIR;
-		} else {
-			process.env.CLAUDE_CONFIG_DIR = originalEnv;
-		}
+		restoreEnv();
 		await rm(tempDir, { recursive: true, force: true });
 	});
 

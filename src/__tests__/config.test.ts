@@ -10,16 +10,13 @@ import {
 	writeConfig,
 } from "../config.ts";
 import { DEFAULT_TYR_CONFIG } from "../types.ts";
+import { saveEnv } from "./helpers/index.ts";
 
 describe("getConfigPath", () => {
-	const originalEnv = process.env.TYR_CONFIG_FILE;
+	const restoreEnv = saveEnv("TYR_CONFIG_FILE");
 
 	afterEach(() => {
-		if (originalEnv === undefined) {
-			delete process.env.TYR_CONFIG_FILE;
-		} else {
-			process.env.TYR_CONFIG_FILE = originalEnv;
-		}
+		restoreEnv();
 	});
 
 	test("uses TYR_CONFIG_FILE env var", () => {
@@ -80,7 +77,7 @@ describe.concurrent("parseValue", () => {
 
 describe("readConfig", () => {
 	let tempDir: string;
-	const originalEnv = process.env.TYR_CONFIG_FILE;
+	const restoreEnv = saveEnv("TYR_CONFIG_FILE");
 
 	beforeEach(async () => {
 		tempDir = await mkdtemp(join(tmpdir(), "tyr-config-"));
@@ -88,11 +85,7 @@ describe("readConfig", () => {
 	});
 
 	afterEach(async () => {
-		if (originalEnv === undefined) {
-			delete process.env.TYR_CONFIG_FILE;
-		} else {
-			process.env.TYR_CONFIG_FILE = originalEnv;
-		}
+		restoreEnv();
 		await rm(tempDir, { recursive: true, force: true });
 	});
 
@@ -120,7 +113,7 @@ describe("readConfig", () => {
 
 describe("writeConfig", () => {
 	let tempDir: string;
-	const originalEnv = process.env.TYR_CONFIG_FILE;
+	const restoreEnv = saveEnv("TYR_CONFIG_FILE");
 
 	beforeEach(async () => {
 		tempDir = await mkdtemp(join(tmpdir(), "tyr-config-"));
@@ -128,11 +121,7 @@ describe("writeConfig", () => {
 	});
 
 	afterEach(async () => {
-		if (originalEnv === undefined) {
-			delete process.env.TYR_CONFIG_FILE;
-		} else {
-			process.env.TYR_CONFIG_FILE = originalEnv;
-		}
+		restoreEnv();
 		await rm(tempDir, { recursive: true, force: true });
 	});
 
