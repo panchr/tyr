@@ -88,31 +88,34 @@ async function tailLog(logPath: string, jsonMode: boolean): Promise<void> {
 		// File doesn't exist yet, wait for it
 		handle = await open(logPath, "a+");
 	}
-	const stat = await handle.stat();
-	let offset = stat.size;
 
-	const watcher = watch(logPath);
-	for await (const _event of watcher) {
-		const newStat = await handle.stat();
-		if (newStat.size <= offset) continue;
+	try {
+		const stat = await handle.stat();
+		let offset = stat.size;
 
-		const buf = Buffer.alloc(newStat.size - offset);
-		await handle.read(buf, 0, buf.length, offset);
-		offset = newStat.size;
+		const watcher = watch(logPath);
+		for await (const _event of watcher) {
+			const newStat = await handle.stat();
+			if (newStat.size <= offset) continue;
 
-		const lines = buf.toString("utf-8").trim().split("\n").filter(Boolean);
-		for (const line of lines) {
-			if (jsonMode) {
-				console.log(line);
-			} else {
-				try {
-					console.log(formatEntry(JSON.parse(line)));
-				} catch {
-					// skip malformed lines
+			const buf = Buffer.alloc(newStat.size - offset);
+			await handle.read(buf, 0, buf.length, offset);
+			offset = newStat.size;
+
+			const lines = buf.toString("utf-8").trim().split("\n").filter(Boolean);
+			for (const line of lines) {
+				if (jsonMode) {
+					console.log(line);
+				} else {
+					try {
+						console.log(formatEntry(JSON.parse(line)));
+					} catch {
+						// skip malformed lines
+					}
 				}
 			}
 		}
+	} finally {
+		await handle.close();
 	}
-
-	await handle.close();
 }
