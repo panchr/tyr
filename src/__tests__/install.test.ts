@@ -6,6 +6,7 @@ import {
 	isInstalled,
 	mergeHook,
 	readSettings,
+	removeHook,
 	writeSettings,
 } from "../install.ts";
 
@@ -223,5 +224,181 @@ describe("tyr install (integration)", () => {
 		const permReqs = settings.hooks.PermissionRequest;
 		expect(permReqs).toHaveLength(2);
 		expect(permReqs[0].matcher).toBe("Write");
+	});
+});
+
+describe.concurrent("removeHook", () => {
+	test("returns null when tyr is not installed", () => {
+		expect(removeHook({})).toBeNull();
+	});
+
+	test("returns null for settings with only other hooks", () => {
+		expect(
+			removeHook({
+				hooks: {
+					PermissionRequest: [
+						{
+							matcher: "Bash",
+							hooks: [{ type: "command", command: "other-tool" }],
+						},
+					],
+				},
+			}),
+		).toBeNull();
+	});
+
+	test("removes tyr entry and preserves other hooks", () => {
+		const result = removeHook({
+			hooks: {
+				PermissionRequest: [
+					{ matcher: "Write", hooks: [{ type: "command", command: "other" }] },
+					{
+						matcher: "Bash",
+						hooks: [{ type: "command", command: "tyr judge" }],
+					},
+				],
+			},
+		});
+		expect(result).not.toBeNull();
+		const hooks = result!.hooks as Record<string, unknown>;
+		const permReqs = hooks.PermissionRequest as unknown[];
+		expect(permReqs).toHaveLength(1);
+	});
+
+	test("removes PermissionRequest key when tyr was the only entry", () => {
+		const result = removeHook({
+			hooks: {
+				PermissionRequest: [
+					{
+						matcher: "Bash",
+						hooks: [{ type: "command", command: "tyr judge" }],
+					},
+				],
+			},
+		});
+		expect(result).not.toBeNull();
+		expect(result!.hooks).toBeUndefined();
+	});
+
+	test("preserves other hook event types", () => {
+		const result = removeHook({
+			hooks: {
+				PermissionRequest: [
+					{
+						matcher: "Bash",
+						hooks: [{ type: "command", command: "tyr judge" }],
+					},
+				],
+				PostToolUse: [{ matcher: "*", hooks: [{ type: "command", command: "logger" }] }],
+			},
+		});
+		expect(result).not.toBeNull();
+		const hooks = result!.hooks as Record<string, unknown>;
+		expect(hooks.PermissionRequest).toBeUndefined();
+		expect(hooks.PostToolUse).toBeDefined();
+	});
+
+	test("preserves non-hook settings", () => {
+		const result = removeHook({
+			permissions: { allow: ["ls"] },
+			hooks: {
+				PermissionRequest: [
+					{
+						matcher: "Bash",
+						hooks: [{ type: "command", command: "tyr judge" }],
+					},
+				],
+			},
+		});
+		expect(result).not.toBeNull();
+		expect(result!.permissions).toEqual({ allow: ["ls"] });
+	});
+});
+
+describe("tyr uninstall (integration)", () => {
+	let tempDir: string;
+
+	beforeEach(async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "tyr-install-test-"));
+	});
+
+	afterEach(async () => {
+		await rm(tempDir, { recursive: true, force: true });
+	});
+
+	async function runCmd(
+		cmd: string,
+		...args: string[]
+	): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+		const proc = Bun.spawn(["bun", "run", "src/index.ts", cmd, ...args], {
+			cwd: `${import.meta.dir}/../..`,
+			stdout: "pipe",
+			stderr: "pipe",
+			env: {
+				...process.env,
+				HOME: tempDir,
+			},
+		});
+		const [stdout, stderr] = await Promise.all([
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+		]);
+		const exitCode = await proc.exited;
+		return { stdout, stderr, exitCode };
+	}
+
+	test("uninstall when not installed exits 0 with message", async () => {
+		const { stdout, exitCode } = await runCmd("uninstall");
+		expect(exitCode).toBe(0);
+		expect(stdout).toContain("not found");
+	});
+
+	test("uninstall after install removes the hook", async () => {
+		await runCmd("install");
+		const { stdout, exitCode } = await runCmd("uninstall");
+		expect(exitCode).toBe(0);
+		expect(stdout).toContain("Removed tyr hook");
+
+		const settingsPath = join(tempDir, ".claude", "settings.json");
+		const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
+		expect(isInstalled(settings)).toBe(false);
+	});
+
+	test("uninstall --dry-run does not modify file", async () => {
+		await runCmd("install");
+		const settingsPath = join(tempDir, ".claude", "settings.json");
+		const before = await readFile(settingsPath, "utf-8");
+
+		const { stdout, exitCode } = await runCmd("uninstall", "--dry-run");
+		expect(exitCode).toBe(0);
+		expect(stdout).toContain("Would write to");
+
+		const after = await readFile(settingsPath, "utf-8");
+		expect(after).toBe(before);
+	});
+
+	test("uninstall preserves other hooks", async () => {
+		const settingsPath = join(tempDir, ".claude", "settings.json");
+		await writeSettings(settingsPath, {
+			hooks: {
+				PermissionRequest: [
+					{ matcher: "Write", hooks: [{ type: "command", command: "other" }] },
+					{
+						matcher: "Bash",
+						hooks: [{ type: "command", command: "tyr judge" }],
+					},
+				],
+			},
+		});
+
+		const { exitCode } = await runCmd("uninstall");
+		expect(exitCode).toBe(0);
+
+		const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
+		expect(isInstalled(settings)).toBe(false);
+		const hooks = settings.hooks as Record<string, unknown>;
+		const permReqs = hooks.PermissionRequest as unknown[];
+		expect(permReqs).toHaveLength(1);
+		expect((permReqs[0] as Record<string, unknown>).matcher).toBe("Write");
 	});
 });

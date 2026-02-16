@@ -11,24 +11,17 @@ import {
 } from "../config.ts";
 import { DEFAULT_TYR_CONFIG } from "../types.ts";
 
-let tempDir: string;
-const originalEnv = process.env.TYR_CONFIG_FILE;
-
-beforeEach(async () => {
-	tempDir = await mkdtemp(join(tmpdir(), "tyr-config-"));
-	process.env.TYR_CONFIG_FILE = join(tempDir, "config.json");
-});
-
-afterEach(async () => {
-	if (originalEnv === undefined) {
-		delete process.env.TYR_CONFIG_FILE;
-	} else {
-		process.env.TYR_CONFIG_FILE = originalEnv;
-	}
-	await rm(tempDir, { recursive: true, force: true });
-});
-
 describe("getConfigPath", () => {
+	const originalEnv = process.env.TYR_CONFIG_FILE;
+
+	afterEach(() => {
+		if (originalEnv === undefined) {
+			delete process.env.TYR_CONFIG_FILE;
+		} else {
+			process.env.TYR_CONFIG_FILE = originalEnv;
+		}
+	});
+
 	test("uses TYR_CONFIG_FILE env var", () => {
 		process.env.TYR_CONFIG_FILE = "/custom/path/config.json";
 		expect(getConfigPath()).toBe("/custom/path/config.json");
@@ -65,6 +58,23 @@ describe.concurrent("parseValue", () => {
 });
 
 describe("readConfig", () => {
+	let tempDir: string;
+	const originalEnv = process.env.TYR_CONFIG_FILE;
+
+	beforeEach(async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "tyr-config-"));
+		process.env.TYR_CONFIG_FILE = join(tempDir, "config.json");
+	});
+
+	afterEach(async () => {
+		if (originalEnv === undefined) {
+			delete process.env.TYR_CONFIG_FILE;
+		} else {
+			process.env.TYR_CONFIG_FILE = originalEnv;
+		}
+		await rm(tempDir, { recursive: true, force: true });
+	});
+
 	test("returns defaults when file missing", async () => {
 		const config = await readConfig();
 		expect(config).toEqual(DEFAULT_TYR_CONFIG);
@@ -88,6 +98,23 @@ describe("readConfig", () => {
 });
 
 describe("writeConfig", () => {
+	let tempDir: string;
+	const originalEnv = process.env.TYR_CONFIG_FILE;
+
+	beforeEach(async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "tyr-config-"));
+		process.env.TYR_CONFIG_FILE = join(tempDir, "config.json");
+	});
+
+	afterEach(async () => {
+		if (originalEnv === undefined) {
+			delete process.env.TYR_CONFIG_FILE;
+		} else {
+			process.env.TYR_CONFIG_FILE = originalEnv;
+		}
+		await rm(tempDir, { recursive: true, force: true });
+	});
+
 	test("creates file and parent directories", async () => {
 		const config = { ...DEFAULT_TYR_CONFIG, failOpen: true };
 		await writeConfig(config);
@@ -105,6 +132,16 @@ describe("writeConfig", () => {
 });
 
 describe("tyr config CLI (integration)", () => {
+	let tempDir: string;
+
+	beforeEach(async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "tyr-config-"));
+	});
+
+	afterEach(async () => {
+		await rm(tempDir, { recursive: true, force: true });
+	});
+
 	async function runConfig(
 		...args: string[]
 	): Promise<{ stdout: string; stderr: string; exitCode: number }> {

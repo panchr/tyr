@@ -81,6 +81,34 @@ function isTyrEntry(entry: Record<string, unknown>): boolean {
 	);
 }
 
+/** Remove the tyr hook from settings, returning the cleaned settings.
+ *  Returns null if tyr was not installed. */
+export function removeHook(
+	settings: Record<string, unknown>,
+): Record<string, unknown> | null {
+	if (!isInstalled(settings)) return null;
+
+	const result = { ...settings };
+	const hooks = { ...(result.hooks as Record<string, unknown>) };
+	const permReqs = hooks.PermissionRequest as Record<string, unknown>[];
+	const filtered = permReqs.filter((entry) => !isTyrEntry(entry));
+
+	if (filtered.length > 0) {
+		hooks.PermissionRequest = filtered;
+	} else {
+		delete hooks.PermissionRequest;
+	}
+
+	// Clean up empty hooks object
+	if (Object.keys(hooks).length === 0) {
+		delete result.hooks;
+	} else {
+		result.hooks = hooks;
+	}
+
+	return result;
+}
+
 /** Write settings to disk, creating parent directories as needed. */
 export async function writeSettings(
 	path: string,

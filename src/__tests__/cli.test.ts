@@ -20,13 +20,13 @@ async function runCli(
 describe.concurrent("cli routing", () => {
 	test("no args shows usage and exits non-zero", async () => {
 		const { stdout, exitCode } = await runCli();
-		expect(stdout).toContain("config|debug|install|judge|log|version");
+		expect(stdout).toContain("config|debug|install|judge|log|uninstall|version");
 		expect(exitCode).not.toBe(0);
 	});
 
 	test("--help shows usage and exits 0", async () => {
 		const { stdout, exitCode } = await runCli("--help");
-		expect(stdout).toContain("config|debug|install|judge|log|version");
+		expect(stdout).toContain("config|debug|install|judge|log|uninstall|version");
 		expect(exitCode).toBe(0);
 	});
 
@@ -38,7 +38,7 @@ describe.concurrent("cli routing", () => {
 
 	test("unknown subcommand shows usage", async () => {
 		const { stdout, exitCode } = await runCli("bogus");
-		expect(stdout).toContain("config|debug|install|judge|log|version");
+		expect(stdout).toContain("config|debug|install|judge|log|uninstall|version");
 		expect(exitCode).not.toBe(0);
 	});
 
