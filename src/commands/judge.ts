@@ -78,12 +78,23 @@ export default defineCommand({
 		}
 
 		// Run pipeline
-		const result = await runPipeline(providers, req);
+		let result = await runPipeline(providers, req);
 
 		if (verbose) {
 			console.error(
 				`[tyr] decision=${result.decision} provider=${result.provider ?? "none"}`,
 			);
+		}
+
+		// If all providers abstained and failOpen is enabled, allow the request
+		if (result.decision === "abstain" && config.failOpen) {
+			result = {
+				decision: "allow",
+				provider: "fail-open",
+			};
+			if (verbose) {
+				console.error("[tyr] failOpen=true, converting abstain to allow");
+			}
 		}
 
 		// Log the decision

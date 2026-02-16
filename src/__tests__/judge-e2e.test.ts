@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { HookResponse } from "../types.ts";
@@ -174,6 +174,77 @@ describe("tyr judge", () => {
 		const req = makePermissionRequest({
 			cwd: tempDir,
 			command: "echo hello",
+		});
+
+		const result = await runJudge(JSON.stringify(req), {
+			env: isolatedEnv(tempDir),
+		});
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout.trim()).toBe("");
+	});
+});
+
+describe("tyr judge: failOpen", () => {
+	/** Write a tyr config with failOpen enabled. */
+	async function enableFailOpen(projectDir: string) {
+		await writeFile(
+			join(projectDir, "tyr-config.json"),
+			JSON.stringify({ failOpen: true }),
+		);
+	}
+
+	test("failOpen=true converts abstain to allow for unknown commands", async () => {
+		await writeProjectSettings(tempDir, {
+			permissions: { allow: ["Bash(git *)"] },
+		});
+		await enableFailOpen(tempDir);
+
+		const req = makePermissionRequest({
+			cwd: tempDir,
+			command: "curl https://example.com",
+		});
+
+		const result = await runJudge(JSON.stringify(req), {
+			env: isolatedEnv(tempDir),
+		});
+
+		expect(result.exitCode).toBe(0);
+		const response = JSON.parse(result.stdout) as HookResponse;
+		expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
+	});
+
+	test("failOpen=true still denies explicitly denied commands", async () => {
+		await writeProjectSettings(tempDir, {
+			permissions: {
+				allow: ["Bash(git *)"],
+				deny: ["Bash(rm *)"],
+			},
+		});
+		await enableFailOpen(tempDir);
+
+		const req = makePermissionRequest({
+			cwd: tempDir,
+			command: "rm -rf /",
+		});
+
+		const result = await runJudge(JSON.stringify(req), {
+			env: isolatedEnv(tempDir),
+		});
+
+		expect(result.exitCode).toBe(0);
+		const response = JSON.parse(result.stdout) as HookResponse;
+		expect(response.hookSpecificOutput.decision.behavior).toBe("deny");
+	});
+
+	test("failOpen=false (default) leaves unknown commands as abstain", async () => {
+		await writeProjectSettings(tempDir, {
+			permissions: { allow: ["Bash(git *)"] },
+		});
+
+		const req = makePermissionRequest({
+			cwd: tempDir,
+			command: "curl https://example.com",
 		});
 
 		const result = await runJudge(JSON.stringify(req), {
