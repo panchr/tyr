@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- mvdan-sh is a CJS GopherJS bundle
-const syntax = require("mvdan-sh").syntax;
+import { syntax } from "mvdan-sh";
 
 /** A simple command extracted from a shell string. */
 export interface SimpleCommand {
@@ -44,7 +43,7 @@ function wordToString(word: unknown): string {
  *  Returns an empty array if parsing fails. */
 export function parseCommands(input: string): SimpleCommand[] {
 	const parser = syntax.NewParser();
-	let file: unknown;
+	let file: import("mvdan-sh").ShellNode;
 	try {
 		file = parser.Parse(input, "");
 	} catch {
@@ -53,7 +52,7 @@ export function parseCommands(input: string): SimpleCommand[] {
 
 	const commands: SimpleCommand[] = [];
 
-	syntax.Walk(file, (node: unknown) => {
+	syntax.Walk(file, (node) => {
 		if (!node) return true;
 		if (syntax.NodeType(node) !== "CallExpr") return true;
 
