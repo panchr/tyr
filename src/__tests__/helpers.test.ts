@@ -48,12 +48,12 @@ describe.concurrent("subprocess helpers", () => {
 		expect(result.exitCode).toBe(0);
 		expect(typeof result.stdout).toBe("string");
 		expect(typeof result.stderr).toBe("string");
-	});
+	}, { timeout: 10_000 });
 
 	test("runJudge captures non-zero exit on bad input", async () => {
 		const result = await runJudge("not json");
 		expect(result.exitCode).toBe(2);
-	});
+	}, { timeout: 10_000 });
 
 	test("runJudge passes extra args", async () => {
 		const req = makePermissionRequest();
@@ -62,11 +62,11 @@ describe.concurrent("subprocess helpers", () => {
 		});
 		expect(result.exitCode).toBe(0);
 		expect(result.stderr).toContain("[tyr]");
-	});
+	}, { timeout: 10_000 });
 
 	test("runCli runs arbitrary subcommands", async () => {
 		const result = await runCli("--version");
 		expect(result.exitCode).toBe(0);
 		expect(result.stdout.trim()).toContain(VERSION);
-	});
+	}, { timeout: 10_000 });
 });

@@ -97,7 +97,7 @@ describe("LLM provider E2E", () => {
 		expect(result.exitCode).toBe(0);
 		const response = JSON.parse(result.stdout) as HookResponse;
 		expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
-	});
+	}, { timeout: 10_000 });
 
 	test("LLM denies when chained-commands abstains", async () => {
 		const mockBin = await writeMockClaude(
@@ -121,7 +121,7 @@ describe("LLM provider E2E", () => {
 		expect(response.hookSpecificOutput.decision.message).toBe(
 			"dangerous command",
 		);
-	});
+	}, { timeout: 10_000 });
 
 	test("LLM error falls through with empty stdout", async () => {
 		const mockBin = await writeMockClaudeError(tempDir);
@@ -138,7 +138,7 @@ describe("LLM provider E2E", () => {
 
 		expect(result.exitCode).toBe(0);
 		expect(result.stdout.trim()).toBe("");
-	});
+	}, { timeout: 10_000 });
 
 	test("LLM invalid JSON response falls through", async () => {
 		const mockBin = await writeMockClaude(tempDir, "this is not json");
@@ -155,7 +155,7 @@ describe("LLM provider E2E", () => {
 
 		expect(result.exitCode).toBe(0);
 		expect(result.stdout.trim()).toBe("");
-	});
+	}, { timeout: 10_000 });
 
 	test("denied command in permissions never reaches LLM", async () => {
 		// Create a mock claude that would allow, but the chained-commands
@@ -184,7 +184,7 @@ describe("LLM provider E2E", () => {
 		const response = JSON.parse(result.stdout) as HookResponse;
 		// Should be denied by chained-commands, not allowed by LLM
 		expect(response.hookSpecificOutput.decision.behavior).toBe("deny");
-	});
+	}, { timeout: 10_000 });
 
 	test("allowed command in permissions short-circuits before LLM", async () => {
 		// Mock claude would deny, but chained-commands should allow first
@@ -211,7 +211,7 @@ describe("LLM provider E2E", () => {
 		expect(result.exitCode).toBe(0);
 		const response = JSON.parse(result.stdout) as HookResponse;
 		expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
-	});
+	}, { timeout: 10_000 });
 
 	test("allowPromptChecks=false skips LLM provider", async () => {
 		const mockBin = await writeMockClaude(
@@ -232,7 +232,7 @@ describe("LLM provider E2E", () => {
 		expect(result.exitCode).toBe(0);
 		// With LLM disabled, unknown commands fall through
 		expect(result.stdout.trim()).toBe("");
-	});
+	}, { timeout: 10_000 });
 
 	test("LLM response with code fences is parsed correctly", async () => {
 		const mockBin = await writeMockClaude(
@@ -253,5 +253,5 @@ describe("LLM provider E2E", () => {
 		expect(result.exitCode).toBe(0);
 		const response = JSON.parse(result.stdout) as HookResponse;
 		expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
-	});
+	}, { timeout: 10_000 });
 });

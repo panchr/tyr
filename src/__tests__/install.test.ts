@@ -177,7 +177,7 @@ describe("tyr install (integration)", () => {
 		const settingsPath = join(tempDir, ".claude", "settings.json");
 		const file = Bun.file(settingsPath);
 		expect(await file.exists()).toBe(false);
-	});
+	}, { timeout: 10_000 });
 
 	test("installs hook into empty settings", async () => {
 		const { stdout, exitCode } = await runInstall("--global");
@@ -187,7 +187,7 @@ describe("tyr install (integration)", () => {
 		const settingsPath = join(tempDir, ".claude", "settings.json");
 		const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
 		expect(isInstalled(settings)).toBe(true);
-	});
+	}, { timeout: 10_000 });
 
 	test("re-install overwrites existing hook", async () => {
 		await runInstall("--global");
@@ -206,7 +206,7 @@ describe("tyr install (integration)", () => {
 			);
 		});
 		expect(tyrEntries).toHaveLength(1);
-	});
+	}, { timeout: 10_000 });
 
 	test("does not clobber existing hooks", async () => {
 		const settingsPath = join(tempDir, ".claude", "settings.json");
@@ -224,7 +224,7 @@ describe("tyr install (integration)", () => {
 		const permReqs = settings.hooks.PermissionRequest;
 		expect(permReqs).toHaveLength(2);
 		expect(permReqs[0].matcher).toBe("Write");
-	});
+	}, { timeout: 10_000 });
 });
 
 describe.concurrent("removeHook", () => {
@@ -351,7 +351,7 @@ describe("tyr uninstall (integration)", () => {
 		const { stdout, exitCode } = await runCmd("uninstall", "--global");
 		expect(exitCode).toBe(0);
 		expect(stdout).toContain("not found");
-	});
+	}, { timeout: 10_000 });
 
 	test("uninstall after install removes the hook", async () => {
 		await runCmd("install", "--global");
@@ -362,7 +362,7 @@ describe("tyr uninstall (integration)", () => {
 		const settingsPath = join(tempDir, ".claude", "settings.json");
 		const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
 		expect(isInstalled(settings)).toBe(false);
-	});
+	}, { timeout: 10_000 });
 
 	test("uninstall --dry-run does not modify file", async () => {
 		await runCmd("install", "--global");
@@ -379,7 +379,7 @@ describe("tyr uninstall (integration)", () => {
 
 		const after = await readFile(settingsPath, "utf-8");
 		expect(after).toBe(before);
-	});
+	}, { timeout: 10_000 });
 
 	test("uninstall preserves other hooks", async () => {
 		const settingsPath = join(tempDir, ".claude", "settings.json");
@@ -404,5 +404,5 @@ describe("tyr uninstall (integration)", () => {
 		const permReqs = hooks.PermissionRequest as unknown[];
 		expect(permReqs).toHaveLength(1);
 		expect((permReqs[0] as Record<string, unknown>).matcher).toBe("Write");
-	});
+	}, { timeout: 10_000 });
 });

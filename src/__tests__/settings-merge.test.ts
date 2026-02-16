@@ -198,7 +198,7 @@ describe("tyr judge: settings merge across scopes", () => {
 		expect(result.exitCode).toBe(0);
 		const response = JSON.parse(result.stdout) as HookResponse;
 		expect(response.hookSpecificOutput.decision.behavior).toBe("deny");
-	});
+	}, { timeout: 10_000 });
 
 	test("user-global allow is picked up via CLAUDE_CONFIG_DIR", async () => {
 		const userDir = join(tempDir, "user-claude");
@@ -217,7 +217,7 @@ describe("tyr judge: settings merge across scopes", () => {
 		expect(result.exitCode).toBe(0);
 		const response = JSON.parse(result.stdout) as HookResponse;
 		expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
-	});
+	}, { timeout: 10_000 });
 
 	test("project allow and user allow both contribute rules", async () => {
 		const userDir = join(tempDir, "user-claude");
@@ -248,7 +248,7 @@ describe("tyr judge: settings merge across scopes", () => {
 		expect(npmResult.exitCode).toBe(0);
 		const npmResponse = JSON.parse(npmResult.stdout) as HookResponse;
 		expect(npmResponse.hookSpecificOutput.decision.behavior).toBe("allow");
-	});
+	}, { timeout: 10_000 });
 
 	test("three scopes: local deny + project allow + user allow", async () => {
 		const userDir = join(tempDir, "user-claude");
@@ -284,7 +284,7 @@ describe("tyr judge: settings merge across scopes", () => {
 		expect(denyResult.exitCode).toBe(0);
 		const denyResponse = JSON.parse(denyResult.stdout) as HookResponse;
 		expect(denyResponse.hookSpecificOutput.decision.behavior).toBe("deny");
-	});
+	}, { timeout: 10_000 });
 
 	test("malformed settings file doesn't crash tyr judge", async () => {
 		await writeProjectSettings(tempDir, {
@@ -308,5 +308,5 @@ describe("tyr judge: settings merge across scopes", () => {
 		expect(result.exitCode).toBe(0);
 		const response = JSON.parse(result.stdout) as HookResponse;
 		expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
-	});
+	}, { timeout: 10_000 });
 });

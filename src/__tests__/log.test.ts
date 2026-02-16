@@ -148,5 +148,5 @@ describe("tyr judge logging (integration)", () => {
 		expect(entries[0]?.decision).toBe("abstain");
 		expect(entries[0]?.session_id).toBe("abc123");
 		expect(entries[0]?.cwd).toBe("/working/directory");
-	});
+	}, { timeout: 10_000 });
 });

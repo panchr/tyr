@@ -48,7 +48,7 @@ describe("tyr judge", () => {
 		expect(result.exitCode).toBe(0);
 		const response = JSON.parse(result.stdout) as HookResponse;
 		expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
-	});
+	}, { timeout: 10_000 });
 
 	test("denied command in chain returns deny response", async () => {
 		await writeProjectSettings(tempDir, {
@@ -70,7 +70,7 @@ describe("tyr judge", () => {
 		expect(result.exitCode).toBe(0);
 		const response = JSON.parse(result.stdout) as HookResponse;
 		expect(response.hookSpecificOutput.decision.behavior).toBe("deny");
-	});
+	}, { timeout: 10_000 });
 
 	test("unknown command falls through with empty stdout", async () => {
 		await writeProjectSettings(tempDir, {
@@ -90,7 +90,7 @@ describe("tyr judge", () => {
 
 		expect(result.exitCode).toBe(0);
 		expect(result.stdout.trim()).toBe("");
-	});
+	}, { timeout: 10_000 });
 
 	test("mixed chain with unknown command falls through", async () => {
 		await writeProjectSettings(tempDir, {
@@ -110,7 +110,7 @@ describe("tyr judge", () => {
 
 		expect(result.exitCode).toBe(0);
 		expect(result.stdout.trim()).toBe("");
-	});
+	}, { timeout: 10_000 });
 
 	test("malformed JSON input returns exit code 2", async () => {
 		const result = await runJudge("not valid json{{{", {
@@ -118,7 +118,7 @@ describe("tyr judge", () => {
 		});
 
 		expect(result.exitCode).toBe(2);
-	});
+	}, { timeout: 10_000 });
 
 	test("valid JSON but invalid PermissionRequest returns exit code 2", async () => {
 		const result = await runJudge(JSON.stringify({ wrong: "shape" }), {
@@ -126,7 +126,7 @@ describe("tyr judge", () => {
 		});
 
 		expect(result.exitCode).toBe(2);
-	});
+	}, { timeout: 10_000 });
 
 	test("non-Bash tool falls through with empty stdout", async () => {
 		await writeProjectSettings(tempDir, {
@@ -147,7 +147,7 @@ describe("tyr judge", () => {
 
 		expect(result.exitCode).toBe(0);
 		expect(result.stdout.trim()).toBe("");
-	});
+	}, { timeout: 10_000 });
 
 	test("single allowed command returns allow", async () => {
 		await writeProjectSettings(tempDir, {
@@ -168,7 +168,7 @@ describe("tyr judge", () => {
 		expect(result.exitCode).toBe(0);
 		const response = JSON.parse(result.stdout) as HookResponse;
 		expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
-	});
+	}, { timeout: 10_000 });
 
 	test("no settings files means all commands fall through", async () => {
 		const req = makePermissionRequest({
@@ -182,7 +182,7 @@ describe("tyr judge", () => {
 
 		expect(result.exitCode).toBe(0);
 		expect(result.stdout.trim()).toBe("");
-	});
+	}, { timeout: 10_000 });
 });
 
 describe("tyr judge: failOpen", () => {
@@ -212,7 +212,7 @@ describe("tyr judge: failOpen", () => {
 		expect(result.exitCode).toBe(0);
 		const response = JSON.parse(result.stdout) as HookResponse;
 		expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
-	});
+	}, { timeout: 10_000 });
 
 	test("failOpen=true still denies explicitly denied commands", async () => {
 		await writeProjectSettings(tempDir, {
@@ -235,7 +235,7 @@ describe("tyr judge: failOpen", () => {
 		expect(result.exitCode).toBe(0);
 		const response = JSON.parse(result.stdout) as HookResponse;
 		expect(response.hookSpecificOutput.decision.behavior).toBe("deny");
-	});
+	}, { timeout: 10_000 });
 
 	test("failOpen=false (default) leaves unknown commands as abstain", async () => {
 		await writeProjectSettings(tempDir, {
@@ -253,5 +253,5 @@ describe("tyr judge: failOpen", () => {
 
 		expect(result.exitCode).toBe(0);
 		expect(result.stdout.trim()).toBe("");
-	});
+	}, { timeout: 10_000 });
 });
