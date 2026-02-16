@@ -6,6 +6,7 @@ import { parsePermissionRequest, readStdin } from "../judge.ts";
 import { appendLogEntry, type LogEntry } from "../log.ts";
 import { runPipeline } from "../pipeline.ts";
 import { ChainedCommandsProvider } from "../providers/chained-commands.ts";
+import { LlmProvider } from "../providers/llm.ts";
 import type { HookResponse, Provider } from "../types.ts";
 
 const judgeArgs = {
@@ -71,6 +72,9 @@ export default defineCommand({
 		const providers: Provider[] = [];
 		if (config.allowChainedCommands) {
 			providers.push(new ChainedCommandsProvider(agent));
+		}
+		if (config.allowPromptChecks) {
+			providers.push(new LlmProvider(agent));
 		}
 
 		// Run pipeline
