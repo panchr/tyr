@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { ClaudeAgent } from "../agents/claude.ts";
 import { buildPrompt, parseLlmResponse } from "../providers/llm.ts";
 import { makePermissionRequest } from "./helpers/index.ts";
@@ -11,6 +11,7 @@ import { makePermissionRequest } from "./helpers/index.ts";
 
 describe.concurrent("buildPrompt adversarial inputs", () => {
 	const agent = new ClaudeAgent();
+	afterAll(() => agent.close());
 
 	test("shell metacharacter: semicolon command chaining", () => {
 		const req = makePermissionRequest({ command: "echo hi; rm -rf /" });

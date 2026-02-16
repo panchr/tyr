@@ -10,16 +10,16 @@ const llmConfig = {
 };
 
 describe.concurrent("buildPrompt", () => {
-	test("includes the command in the prompt", async () => {
+	test("includes the command in the prompt", () => {
 		const agent = new ClaudeAgent();
 		const req = makePermissionRequest({ command: "rm -rf /" });
 		const prompt = buildPrompt(req, agent);
 		expect(prompt).toContain("rm -rf /");
+		agent.close();
 	});
 
 	test("includes allowed and denied patterns", async () => {
 		const agent = new ClaudeAgent();
-		// Initialize with settings that have permissions
 		const { mkdtemp, rm, writeFile, mkdir } = await import("node:fs/promises");
 		const { tmpdir } = await import("node:os");
 		const { join } = await import("node:path");
@@ -44,8 +44,8 @@ describe.concurrent("buildPrompt", () => {
 			expect(prompt).toContain("git *");
 			expect(prompt).toContain("npm test");
 			expect(prompt).toContain("rm *");
-			agent.close();
 		} finally {
+			agent.close();
 			await rm(tempDir, { recursive: true, force: true });
 		}
 	});
@@ -58,6 +58,7 @@ describe.concurrent("buildPrompt", () => {
 		});
 		const prompt = buildPrompt(req, agent);
 		expect(prompt).toContain("/home/user/project");
+		agent.close();
 	});
 });
 
@@ -133,6 +134,7 @@ describe.concurrent("LlmProvider", () => {
 
 		const result = await provider.checkPermission(req);
 		expect(result.decision).toBe("abstain");
+		agent.close();
 	});
 
 	test("abstains for empty command", async () => {
@@ -143,6 +145,7 @@ describe.concurrent("LlmProvider", () => {
 		const req = makePermissionRequest({ command: "" });
 		const result = await provider.checkPermission(req);
 		expect(result.decision).toBe("abstain");
+		agent.close();
 	});
 
 	test("abstains for missing command", async () => {
@@ -154,8 +157,12 @@ describe.concurrent("LlmProvider", () => {
 		req.tool_input = {};
 		const result = await provider.checkPermission(req);
 		expect(result.decision).toBe("abstain");
+		agent.close();
 	});
+});
 
+// Not concurrent: spyOn(Bun, "spawn") mutates a global
+describe("LlmProvider spawn", () => {
 	test("uses Bun.spawn with array args (no shell interpolation)", async () => {
 		const { LlmProvider } = await import("../providers/llm.ts");
 		const agent = new ClaudeAgent();
@@ -199,5 +206,6 @@ describe.concurrent("LlmProvider", () => {
 		expect(opts?.shell).toBeUndefined();
 
 		spawned.mockRestore();
+		agent.close();
 	});
 });
