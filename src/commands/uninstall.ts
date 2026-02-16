@@ -10,11 +10,11 @@ import {
 const uninstallArgs = {
 	global: {
 		type: "boolean" as const,
-		description: "Remove from ~/.claude/settings.json (default)",
+		description: "Remove from ~/.claude/settings.json",
 	},
 	project: {
 		type: "boolean" as const,
-		description: "Remove from .claude/settings.json",
+		description: "Remove from .claude/settings.json (default)",
 	},
 	"dry-run": {
 		type: "boolean" as const,
@@ -30,7 +30,7 @@ export default defineCommand({
 	args: uninstallArgs,
 	async run({ args, rawArgs }) {
 		rejectUnknownArgs(rawArgs, uninstallArgs);
-		const scope = args.project ? "project" : "global";
+		const scope = args.global ? "global" : "project";
 		const dryRun = args["dry-run"] ?? false;
 		const settingsPath = getSettingsPath(scope);
 

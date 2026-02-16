@@ -11,11 +11,11 @@ import {
 const installArgs = {
 	global: {
 		type: "boolean" as const,
-		description: "Write to ~/.claude/settings.json (default)",
+		description: "Write to ~/.claude/settings.json",
 	},
 	project: {
 		type: "boolean" as const,
-		description: "Write to .claude/settings.json",
+		description: "Write to .claude/settings.json (default)",
 	},
 	"dry-run": {
 		type: "boolean" as const,
@@ -31,7 +31,7 @@ export default defineCommand({
 	args: installArgs,
 	async run({ args, rawArgs }) {
 		rejectUnknownArgs(rawArgs, installArgs);
-		const scope = args.project ? "project" : "global";
+		const scope = args.global ? "global" : "project";
 		const dryRun = args["dry-run"] ?? false;
 		const settingsPath = getSettingsPath(scope);
 

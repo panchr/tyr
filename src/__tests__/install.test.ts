@@ -168,7 +168,7 @@ describe("tyr install (integration)", () => {
 	}
 
 	test("--dry-run prints config without writing", async () => {
-		const { stdout, exitCode } = await runInstall("--dry-run");
+		const { stdout, exitCode } = await runInstall("--global", "--dry-run");
 		expect(exitCode).toBe(0);
 		expect(stdout).toContain("Would write to");
 		expect(stdout).toContain("tyr judge");
@@ -180,7 +180,7 @@ describe("tyr install (integration)", () => {
 	});
 
 	test("installs hook into empty settings", async () => {
-		const { stdout, exitCode } = await runInstall();
+		const { stdout, exitCode } = await runInstall("--global");
 		expect(exitCode).toBe(0);
 		expect(stdout).toContain("Installed tyr hook");
 
@@ -190,8 +190,8 @@ describe("tyr install (integration)", () => {
 	});
 
 	test("re-install overwrites existing hook", async () => {
-		await runInstall();
-		const { stdout, exitCode } = await runInstall();
+		await runInstall("--global");
+		const { stdout, exitCode } = await runInstall("--global");
 		expect(exitCode).toBe(0);
 		expect(stdout).toContain("Updated tyr hook");
 
@@ -218,7 +218,7 @@ describe("tyr install (integration)", () => {
 			},
 		});
 
-		await runInstall();
+		await runInstall("--global");
 
 		const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
 		const permReqs = settings.hooks.PermissionRequest;
@@ -348,14 +348,14 @@ describe("tyr uninstall (integration)", () => {
 	}
 
 	test("uninstall when not installed exits 0 with message", async () => {
-		const { stdout, exitCode } = await runCmd("uninstall");
+		const { stdout, exitCode } = await runCmd("uninstall", "--global");
 		expect(exitCode).toBe(0);
 		expect(stdout).toContain("not found");
 	});
 
 	test("uninstall after install removes the hook", async () => {
-		await runCmd("install");
-		const { stdout, exitCode } = await runCmd("uninstall");
+		await runCmd("install", "--global");
+		const { stdout, exitCode } = await runCmd("uninstall", "--global");
 		expect(exitCode).toBe(0);
 		expect(stdout).toContain("Removed tyr hook");
 
@@ -365,11 +365,15 @@ describe("tyr uninstall (integration)", () => {
 	});
 
 	test("uninstall --dry-run does not modify file", async () => {
-		await runCmd("install");
+		await runCmd("install", "--global");
 		const settingsPath = join(tempDir, ".claude", "settings.json");
 		const before = await readFile(settingsPath, "utf-8");
 
-		const { stdout, exitCode } = await runCmd("uninstall", "--dry-run");
+		const { stdout, exitCode } = await runCmd(
+			"uninstall",
+			"--global",
+			"--dry-run",
+		);
 		expect(exitCode).toBe(0);
 		expect(stdout).toContain("Would write to");
 
@@ -391,7 +395,7 @@ describe("tyr uninstall (integration)", () => {
 			},
 		});
 
-		const { exitCode } = await runCmd("uninstall");
+		const { exitCode } = await runCmd("uninstall", "--global");
 		expect(exitCode).toBe(0);
 
 		const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
