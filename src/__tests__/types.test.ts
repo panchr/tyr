@@ -107,6 +107,10 @@ describe.concurrent("TyrConfig", () => {
 			allowPromptChecks: false,
 			cacheChecks: false,
 			failOpen: false,
+			llmProvider: "claude",
+			llmModel: "haiku",
+			llmEndpoint: "https://openrouter.ai/api/v1",
+			llmTimeout: 10,
 		});
 	});
 

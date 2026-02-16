@@ -64,6 +64,14 @@ export interface TyrConfig {
 	cacheChecks: boolean;
 	/** If true, approve requests when tyr encounters an error. Default: false (fail-closed). */
 	failOpen: boolean;
+	/** LLM provider backend: 'claude' (local CLI) or 'openrouter' (API). */
+	llmProvider: string;
+	/** Model identifier passed to the LLM provider. */
+	llmModel: string;
+	/** API endpoint (only used when llmProvider is 'openrouter'). */
+	llmEndpoint: string;
+	/** LLM request timeout in seconds. */
+	llmTimeout: number;
 }
 
 export const DEFAULT_TYR_CONFIG: TyrConfig = {
@@ -71,4 +79,8 @@ export const DEFAULT_TYR_CONFIG: TyrConfig = {
 	allowPromptChecks: false,
 	cacheChecks: false,
 	failOpen: false,
+	llmProvider: "claude",
+	llmModel: "haiku",
+	llmEndpoint: "https://openrouter.ai/api/v1",
+	llmTimeout: 10,
 };

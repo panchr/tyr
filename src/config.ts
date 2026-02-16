@@ -43,11 +43,20 @@ export async function writeConfig(config: TyrConfig): Promise<void> {
 export function parseValue(
 	key: keyof TyrConfig,
 	value: string,
-): boolean | null {
+): TyrConfig[keyof TyrConfig] | null {
 	const expected = typeof DEFAULT_TYR_CONFIG[key];
 	if (expected === "boolean") {
 		if (value === "true") return true;
 		if (value === "false") return false;
+		return null;
+	}
+	if (expected === "string") {
+		return value;
+	}
+	if (expected === "number") {
+		if (value.trim() === "") return null;
+		const num = Number(value);
+		if (Number.isFinite(num)) return num;
 		return null;
 	}
 	return null;

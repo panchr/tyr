@@ -34,6 +34,10 @@ describe.concurrent("isValidKey", () => {
 		expect(isValidKey("failOpen")).toBe(true);
 		expect(isValidKey("allowPromptChecks")).toBe(true);
 		expect(isValidKey("cacheChecks")).toBe(true);
+		expect(isValidKey("llmProvider")).toBe(true);
+		expect(isValidKey("llmModel")).toBe(true);
+		expect(isValidKey("llmEndpoint")).toBe(true);
+		expect(isValidKey("llmTimeout")).toBe(true);
 	});
 
 	test("rejects invalid keys", () => {
@@ -54,6 +58,23 @@ describe.concurrent("parseValue", () => {
 	test("returns null for invalid boolean", () => {
 		expect(parseValue("failOpen", "yes")).toBeNull();
 		expect(parseValue("failOpen", "1")).toBeNull();
+	});
+
+	test("parses string values", () => {
+		expect(parseValue("llmProvider", "openrouter")).toBe("openrouter");
+		expect(parseValue("llmModel", "anthropic/claude-3.5-haiku")).toBe(
+			"anthropic/claude-3.5-haiku",
+		);
+	});
+
+	test("parses number values", () => {
+		expect(parseValue("llmTimeout", "30")).toBe(30);
+		expect(parseValue("llmTimeout", "5.5")).toBe(5.5);
+	});
+
+	test("returns null for invalid number", () => {
+		expect(parseValue("llmTimeout", "abc")).toBeNull();
+		expect(parseValue("llmTimeout", "")).toBeNull();
 	});
 });
 
