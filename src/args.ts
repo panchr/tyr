@@ -23,7 +23,7 @@ export function rejectUnknownArgs(rawArgs: string[], argsDef: ArgsDef): void {
 	for (const arg of rawArgs) {
 		if (!arg.startsWith("-")) continue;
 		// Handle --flag=value
-		const flag = arg.split("=")[0] as string;
+		const flag = arg.split("=")[0]!;
 		if (!known.has(flag)) {
 			console.error(`Unknown option: ${flag}`);
 			process.exit(1);

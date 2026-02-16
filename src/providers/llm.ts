@@ -67,7 +67,7 @@ export function parseLlmResponse(stdout: string): LlmDecision | null {
 			(parsed.decision === "allow" || parsed.decision === "deny") &&
 			typeof parsed.reason === "string"
 		) {
-			return parsed as unknown as LlmDecision;
+			return { decision: parsed.decision, reason: parsed.reason };
 		}
 		return null;
 	} catch {
