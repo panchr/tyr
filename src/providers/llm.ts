@@ -100,12 +100,15 @@ export class LlmProvider implements Provider {
 			CLAUDECODE: undefined,
 		};
 
-		const proc = Bun.spawn(["claude", "-p", "--output-format", "text"], {
-			stdin: new Response(prompt).body,
-			stdout: "pipe",
-			stderr: "pipe",
-			env,
-		});
+		const proc = Bun.spawn(
+			["claude", "-p", "--output-format", "text", "--model", "haiku"],
+			{
+				stdin: new Response(prompt).body,
+				stdout: "pipe",
+				stderr: "pipe",
+				env,
+			},
+		);
 
 		const result = await Promise.race([
 			(async () => {

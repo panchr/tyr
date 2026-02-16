@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, spyOn, test } from "bun:test";
 import { ClaudeAgent } from "../agents/claude.ts";
 import { buildPrompt, parseLlmResponse } from "../providers/llm.ts";
 import { makePermissionRequest } from "./helpers/index.ts";
@@ -151,18 +151,44 @@ describe.concurrent("LlmProvider", () => {
 	});
 
 	test("uses Bun.spawn with array args (no shell interpolation)", async () => {
-		// Verify the implementation uses array args by checking the source.
-		// This is a design constraint to prevent injection.
-		const { readFile } = await import("node:fs/promises");
-		const { resolve } = await import("node:path");
-		const source = await readFile(
-			resolve(import.meta.dir, "../providers/llm.ts"),
-			"utf-8",
-		);
+		const { LlmProvider } = await import("../providers/llm.ts");
+		const agent = new ClaudeAgent();
+		const provider = new LlmProvider(agent, 1000);
 
-		// Should use Bun.spawn with array, not a string
-		expect(source).toContain('Bun.spawn(["claude"');
-		// Should not use shell: true or pass a string command
-		expect(source).not.toContain("shell: true");
+		const stdout = new ReadableStream({
+			start(controller) {
+				controller.enqueue(
+					new TextEncoder().encode(
+						'{"decision": "allow", "reason": "ok"}',
+					),
+				);
+				controller.close();
+			},
+		});
+		const stderr = new ReadableStream({
+			start(controller) {
+				controller.close();
+			},
+		});
+
+		const spawned = spyOn(Bun, "spawn").mockReturnValueOnce({
+			stdout,
+			stderr,
+			exited: Promise.resolve(0),
+			kill: mock(),
+		} as unknown as ReturnType<typeof Bun.spawn>);
+
+		const req = makePermissionRequest({ command: "echo test" });
+		await provider.checkPermission(req);
+
+		expect(spawned).toHaveBeenCalledTimes(1);
+		const call = spawned.mock.calls[0]!;
+		const args = call[0];
+		const opts = call[1] as Record<string, unknown> | undefined;
+		expect(Array.isArray(args)).toBe(true);
+		expect(args[0]).toBe("claude");
+		expect(opts?.shell).toBeUndefined();
+
+		spawned.mockRestore();
 	});
 });
