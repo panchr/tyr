@@ -118,6 +118,7 @@ export class LlmProvider implements Provider {
 			},
 		);
 
+		let timer: Timer;
 		const result = await Promise.race([
 			(async () => {
 				const [stdout, stderr] = await Promise.all([
@@ -133,7 +134,7 @@ export class LlmProvider implements Provider {
 				exitCode: number;
 				timedOut: boolean;
 			}>((resolve) => {
-				setTimeout(() => {
+				timer = setTimeout(() => {
 					proc.kill();
 					resolve({
 						stdout: "",
@@ -144,6 +145,7 @@ export class LlmProvider implements Provider {
 				}, this.timeoutMs);
 			}),
 		]);
+		clearTimeout(timer!);
 
 		if (this.verbose) {
 			console.error(
