@@ -109,7 +109,7 @@ export class LlmProvider implements Provider {
 		};
 
 		const proc = Bun.spawn(
-			["claude", "-p", "--output-format", "text", "--model", this.model],
+			["claude", "-p", "--output-format", "text", "--no-session-persistence", "--model", this.model],
 			{
 				stdin: new Response(prompt).body,
 				stdout: "pipe",
