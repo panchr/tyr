@@ -1,7 +1,13 @@
 import { describe, expect, mock, spyOn, test } from "bun:test";
 import { ClaudeAgent } from "../agents/claude.ts";
 import { buildPrompt, parseLlmResponse } from "../providers/llm.ts";
+import { DEFAULT_TYR_CONFIG } from "../types.ts";
 import { makePermissionRequest } from "./helpers/index.ts";
+
+const llmConfig = {
+	llmModel: DEFAULT_TYR_CONFIG.llmModel,
+	llmTimeout: DEFAULT_TYR_CONFIG.llmTimeout,
+};
 
 describe.concurrent("buildPrompt", () => {
 	test("includes the command in the prompt", async () => {
@@ -118,7 +124,7 @@ describe.concurrent("LlmProvider", () => {
 	test("abstains for non-Bash tools", async () => {
 		const { LlmProvider } = await import("../providers/llm.ts");
 		const agent = new ClaudeAgent();
-		const provider = new LlmProvider(agent);
+		const provider = new LlmProvider(agent, llmConfig);
 
 		const req = makePermissionRequest({
 			tool_name: "Read",
@@ -132,7 +138,7 @@ describe.concurrent("LlmProvider", () => {
 	test("abstains for empty command", async () => {
 		const { LlmProvider } = await import("../providers/llm.ts");
 		const agent = new ClaudeAgent();
-		const provider = new LlmProvider(agent);
+		const provider = new LlmProvider(agent, llmConfig);
 
 		const req = makePermissionRequest({ command: "" });
 		const result = await provider.checkPermission(req);
@@ -142,7 +148,7 @@ describe.concurrent("LlmProvider", () => {
 	test("abstains for missing command", async () => {
 		const { LlmProvider } = await import("../providers/llm.ts");
 		const agent = new ClaudeAgent();
-		const provider = new LlmProvider(agent);
+		const provider = new LlmProvider(agent, llmConfig);
 
 		const req = makePermissionRequest();
 		req.tool_input = {};
@@ -153,7 +159,10 @@ describe.concurrent("LlmProvider", () => {
 	test("uses Bun.spawn with array args (no shell interpolation)", async () => {
 		const { LlmProvider } = await import("../providers/llm.ts");
 		const agent = new ClaudeAgent();
-		const provider = new LlmProvider(agent, 1000);
+		const provider = new LlmProvider(agent, {
+			llmModel: "haiku",
+			llmTimeout: 1,
+		});
 
 		const stdout = new ReadableStream({
 			start(controller) {

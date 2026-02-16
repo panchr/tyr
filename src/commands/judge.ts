@@ -74,7 +74,7 @@ export default defineCommand({
 			providers.push(new ChainedCommandsProvider(agent));
 		}
 		if (config.allowPromptChecks) {
-			providers.push(new LlmProvider(agent, undefined, verbose));
+			providers.push(new LlmProvider(agent, config, verbose));
 		}
 
 		// Run pipeline

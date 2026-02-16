@@ -3,6 +3,7 @@ import type {
 	PermissionRequest,
 	Provider,
 	ProviderResult,
+	TyrConfig,
 } from "../types.ts";
 
 /** Expected shape of the LLM's JSON response. */
@@ -47,7 +48,7 @@ or
 {"decision": "deny", "reason": "brief explanation"}`;
 }
 
-const DEFAULT_TIMEOUT_MS = 30_000;
+const S_TO_MS = 1000;
 
 /** Parse the LLM's stdout into a decision. Returns null on invalid output. */
 export function parseLlmResponse(stdout: string): LlmDecision | null {
@@ -79,11 +80,17 @@ export function parseLlmResponse(stdout: string): LlmDecision | null {
 export class LlmProvider implements Provider {
 	readonly name = "llm";
 
+	private timeoutMs: number;
+	private model: string;
+
 	constructor(
 		private agent: ClaudeAgent,
-		private timeoutMs: number = DEFAULT_TIMEOUT_MS,
+		config: Pick<TyrConfig, "llmModel" | "llmTimeout">,
 		private verbose: boolean = false,
-	) {}
+	) {
+		this.model = config.llmModel;
+		this.timeoutMs = config.llmTimeout * S_TO_MS;
+	}
 
 	async checkPermission(req: PermissionRequest): Promise<ProviderResult> {
 		if (req.tool_name !== "Bash") return { decision: "abstain" };
@@ -102,7 +109,7 @@ export class LlmProvider implements Provider {
 		};
 
 		const proc = Bun.spawn(
-			["claude", "-p", "--output-format", "text", "--model", "haiku"],
+			["claude", "-p", "--output-format", "text", "--model", this.model],
 			{
 				stdin: new Response(prompt).body,
 				stdout: "pipe",
