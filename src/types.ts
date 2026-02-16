@@ -55,32 +55,25 @@ export interface AgentConfig {
 
 // -- Tyr's own config --
 
-export interface TyrConfig {
+export const TyrConfigSchema = z.object({
 	/** Allow the chained-commands provider. */
-	allowChainedCommands: boolean;
+	allowChainedCommands: z.boolean().default(true),
 	/** Allow LLM-based permission checks. */
-	allowPromptChecks: boolean;
+	allowPromptChecks: z.boolean().default(false),
 	/** Cache provider results (Phase 3+). */
-	cacheChecks: boolean;
+	cacheChecks: z.boolean().default(false),
 	/** If true, approve requests when tyr encounters an error. Default: false (fail-closed). */
-	failOpen: boolean;
+	failOpen: z.boolean().default(false),
 	/** LLM provider backend: 'claude' (local CLI) or 'openrouter' (API). */
-	llmProvider: string;
+	llmProvider: z.string().default("claude"),
 	/** Model identifier passed to the LLM provider. */
-	llmModel: string;
+	llmModel: z.string().default("haiku"),
 	/** API endpoint (only used when llmProvider is 'openrouter'). */
-	llmEndpoint: string;
+	llmEndpoint: z.string().default("https://openrouter.ai/api/v1"),
 	/** LLM request timeout in seconds. */
-	llmTimeout: number;
-}
+	llmTimeout: z.number().default(10),
+});
 
-export const DEFAULT_TYR_CONFIG: TyrConfig = {
-	allowChainedCommands: true,
-	allowPromptChecks: false,
-	cacheChecks: false,
-	failOpen: false,
-	llmProvider: "claude",
-	llmModel: "haiku",
-	llmEndpoint: "https://openrouter.ai/api/v1",
-	llmTimeout: 10,
-};
+export type TyrConfig = z.infer<typeof TyrConfigSchema>;
+
+export const DEFAULT_TYR_CONFIG: TyrConfig = TyrConfigSchema.parse({});

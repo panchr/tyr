@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { DEFAULT_TYR_CONFIG, type TyrConfig } from "./types.ts";
+import { DEFAULT_TYR_CONFIG, TyrConfigSchema, type TyrConfig } from "./types.ts";
 
 const CONFIG_DIR = join(homedir(), ".config", "tyr");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
@@ -20,13 +20,14 @@ export function isValidKey(key: string): key is keyof TyrConfig {
 	return VALID_KEYS.has(key as keyof TyrConfig);
 }
 
-/** Read tyr's config, returning defaults for missing or invalid files. */
+/** Read tyr's config, returning defaults for missing or invalid files.
+ *  Unknown keys are stripped; invalid values fall back to defaults. */
 export async function readConfig(): Promise<TyrConfig> {
 	const path = getConfigPath();
 	try {
 		const text = await readFile(path, "utf-8");
-		const parsed = JSON.parse(text) as Partial<TyrConfig>;
-		return { ...DEFAULT_TYR_CONFIG, ...parsed };
+		const raw = JSON.parse(text);
+		return TyrConfigSchema.parse(raw);
 	} catch {
 		return { ...DEFAULT_TYR_CONFIG };
 	}
