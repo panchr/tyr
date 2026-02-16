@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { VERSION } from "../version.ts";
 import { runCli } from "./helpers/index.ts";
 
 describe.concurrent("cli routing", () => {
@@ -20,7 +21,7 @@ describe.concurrent("cli routing", () => {
 
 	test("--version prints version", async () => {
 		const { stdout, exitCode } = await runCli("--version");
-		expect(stdout.trim()).toContain("0.1.0");
+		expect(stdout.trim()).toContain(VERSION);
 		expect(exitCode).toBe(0);
 	});
 
