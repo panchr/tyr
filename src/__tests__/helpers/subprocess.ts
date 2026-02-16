@@ -9,6 +9,20 @@ export interface CliResult {
 
 const PROJECT_ROOT = resolve(import.meta.dir, "../../..");
 
+/** Collect stdout, stderr, and exit code from a piped subprocess. */
+async function collectResult(proc: {
+	stdout: ReadableStream;
+	stderr: ReadableStream;
+	exited: Promise<number>;
+}): Promise<CliResult> {
+	const [stdout, stderr] = await Promise.all([
+		new Response(proc.stdout).text(),
+		new Response(proc.stderr).text(),
+	]);
+	const exitCode = await proc.exited;
+	return { stdout, stderr, exitCode };
+}
+
 /** Run `tyr judge` as a subprocess, piping input to stdin. */
 export async function runJudge(
 	stdin: string,
@@ -27,12 +41,7 @@ export async function runJudge(
 			env: { ...process.env, ...options.env },
 		},
 	);
-	const [stdout, stderr] = await Promise.all([
-		new Response(proc.stdout).text(),
-		new Response(proc.stderr).text(),
-	]);
-	const exitCode = await proc.exited;
-	return { stdout, stderr, exitCode };
+	return collectResult(proc);
 }
 
 /** Run an arbitrary tyr subcommand as a subprocess. */
@@ -49,10 +58,5 @@ export async function runCli(
 		stderr: "pipe",
 		env: { ...process.env, ...options.env },
 	});
-	const [stdout, stderr] = await Promise.all([
-		new Response(proc.stdout).text(),
-		new Response(proc.stderr).text(),
-	]);
-	const exitCode = await proc.exited;
-	return { stdout, stderr, exitCode };
+	return collectResult(proc);
 }
