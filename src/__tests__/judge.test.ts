@@ -194,4 +194,31 @@ describe.concurrent("tyr judge (integration)", () => {
 		},
 		{ timeout: 10_000 },
 	);
+
+	test(
+		"--shadow suppresses stdout output",
+		async () => {
+			const { stdout, exitCode } = await runJudge(
+				JSON.stringify(VALID_REQUEST),
+				["--shadow"],
+			);
+			expect(exitCode).toBe(0);
+			expect(stdout.trim()).toBe("");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--shadow with --verbose shows suppression message",
+		async () => {
+			const { stdout, stderr, exitCode } = await runJudge(
+				JSON.stringify(VALID_REQUEST),
+				["--shadow", "--verbose"],
+			);
+			expect(exitCode).toBe(0);
+			expect(stdout.trim()).toBe("");
+			expect(stderr).toContain("shadow mode: suppressing decision=");
+		},
+		{ timeout: 10_000 },
+	);
 });

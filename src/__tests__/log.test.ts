@@ -150,4 +150,28 @@ describe("tyr judge logging (integration)", () => {
 		},
 		{ timeout: 10_000 },
 	);
+
+	test(
+		"shadow mode sets mode field in log entry",
+		async () => {
+			await setupTempLog();
+			const proc = Bun.spawn(
+				["bun", "run", "src/index.ts", "judge", "--shadow"],
+				{
+					cwd: `${import.meta.dir}/../..`,
+					stdout: "pipe",
+					stderr: "pipe",
+					stdin: new Response(JSON.stringify(VALID_REQUEST)).body,
+					env: { ...process.env, TYR_LOG_FILE: logFile },
+				},
+			);
+			await proc.exited;
+
+			const entries = await readLogEntries();
+			expect(entries).toHaveLength(1);
+			expect(entries[0]?.mode).toBe("shadow");
+			expect(entries[0]?.decision).toBe("abstain");
+		},
+		{ timeout: 10_000 },
+	);
 });

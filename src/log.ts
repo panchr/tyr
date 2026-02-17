@@ -12,6 +12,7 @@ export const LogEntrySchema = z.object({
 	provider: z.string().nullable(),
 	duration_ms: z.number(),
 	session_id: z.string(),
+	mode: z.enum(["shadow", "audit"]).optional(),
 });
 
 export type LogEntry = z.infer<typeof LogEntrySchema>;

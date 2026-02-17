@@ -14,6 +14,11 @@ const judgeArgs = {
 		type: "boolean" as const,
 		description: "Emit debug info to stderr",
 	},
+	shadow: {
+		type: "boolean" as const,
+		description:
+			"Run the full pipeline but always abstain; the real decision is only logged",
+	},
 };
 
 export default defineCommand({
@@ -25,6 +30,7 @@ export default defineCommand({
 	async run({ args, rawArgs }) {
 		rejectUnknownArgs(rawArgs, judgeArgs);
 		const verbose = args.verbose ?? false;
+		const shadow = args.shadow ?? false;
 		const startTime = performance.now();
 
 		let raw: string;
@@ -108,12 +114,25 @@ export default defineCommand({
 			provider: result.provider,
 			duration_ms: Math.round(duration),
 			session_id: req.session_id,
+			mode: shadow ? "shadow" : undefined,
 		};
 
 		try {
 			await appendLogEntry(entry);
 		} catch (err) {
 			if (verbose) console.error("[tyr] failed to write log:", err);
+		}
+
+		// In shadow mode, always abstain to Claude Code regardless of the real decision
+		if (shadow) {
+			if (verbose) {
+				console.error(
+					`[tyr] shadow mode: suppressing decision=${result.decision}`,
+				);
+			}
+			agent.close();
+			process.exit(0);
+			return;
 		}
 
 		// Emit response to stdout if we have a definitive decision
