@@ -19,6 +19,10 @@ const judgeArgs = {
 		description:
 			"Run the full pipeline but always abstain; the real decision is only logged",
 	},
+	audit: {
+		type: "boolean" as const,
+		description: "Skip the pipeline entirely; just log the request and abstain",
+	},
 };
 
 export default defineCommand({
@@ -31,6 +35,14 @@ export default defineCommand({
 		rejectUnknownArgs(rawArgs, judgeArgs);
 		const verbose = args.verbose ?? false;
 		const shadow = args.shadow ?? false;
+		const audit = args.audit ?? false;
+
+		if (shadow && audit) {
+			console.error("[tyr] --shadow and --audit are mutually exclusive");
+			process.exit(1);
+			return;
+		}
+
 		const startTime = performance.now();
 
 		let raw: string;
@@ -64,6 +76,32 @@ export default defineCommand({
 			console.error(
 				`[tyr] tool=${req.tool_name} input=${JSON.stringify(req.tool_input)}`,
 			);
+		}
+
+		// Audit mode: log the request and exit without running the pipeline
+		if (audit) {
+			const duration = performance.now() - startTime;
+			const entry: LogEntry = {
+				timestamp: new Date().toISOString(),
+				cwd: req.cwd,
+				tool_name: req.tool_name,
+				tool_input: req.tool_input,
+				decision: "abstain",
+				provider: null,
+				duration_ms: Math.round(duration),
+				session_id: req.session_id,
+				mode: "audit",
+			};
+			try {
+				await appendLogEntry(entry);
+			} catch (err) {
+				if (verbose) console.error("[tyr] failed to write log:", err);
+			}
+			if (verbose) {
+				console.error("[tyr] audit mode: logged request, skipping pipeline");
+			}
+			process.exit(0);
+			return;
 		}
 
 		// Build provider pipeline based on config

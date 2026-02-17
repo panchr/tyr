@@ -221,4 +221,44 @@ describe.concurrent("tyr judge (integration)", () => {
 		},
 		{ timeout: 10_000 },
 	);
+
+	test(
+		"--audit suppresses stdout and skips pipeline",
+		async () => {
+			const { stdout, exitCode } = await runJudge(
+				JSON.stringify(VALID_REQUEST),
+				["--audit"],
+			);
+			expect(exitCode).toBe(0);
+			expect(stdout.trim()).toBe("");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--audit with --verbose shows audit message",
+		async () => {
+			const { stdout, stderr, exitCode } = await runJudge(
+				JSON.stringify(VALID_REQUEST),
+				["--audit", "--verbose"],
+			);
+			expect(exitCode).toBe(0);
+			expect(stdout.trim()).toBe("");
+			expect(stderr).toContain("audit mode: logged request, skipping pipeline");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--shadow and --audit are mutually exclusive",
+		async () => {
+			const { stderr, exitCode } = await runJudge(
+				JSON.stringify(VALID_REQUEST),
+				["--shadow", "--audit"],
+			);
+			expect(exitCode).toBe(1);
+			expect(stderr).toContain("mutually exclusive");
+		},
+		{ timeout: 10_000 },
+	);
 });
