@@ -1,9 +1,5 @@
 import type { ClaudeAgent } from "../agents/claude.ts";
-import type {
-	PermissionRequest,
-	Provider,
-	ProviderResult,
-} from "../types.ts";
+import type { PermissionRequest, Provider, ProviderResult } from "../types.ts";
 import { parseCommands } from "./shell-parser.ts";
 
 /** Provider that splits chained shell commands and checks each sub-command

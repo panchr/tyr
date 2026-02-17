@@ -169,64 +169,83 @@ describe("tyr install (integration)", () => {
 		return { stdout, stderr, exitCode };
 	}
 
-	test("--dry-run prints config without writing", async () => {
-		const { stdout, exitCode } = await runInstall("--global", "--dry-run");
-		expect(exitCode).toBe(0);
-		expect(stdout).toContain("Would write to");
-		expect(stdout).toContain("tyr judge");
+	test(
+		"--dry-run prints config without writing",
+		async () => {
+			const { stdout, exitCode } = await runInstall("--global", "--dry-run");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("Would write to");
+			expect(stdout).toContain("tyr judge");
 
-		// Verify nothing was written
-		const settingsPath = join(tempDir, ".claude", "settings.json");
-		const file = Bun.file(settingsPath);
-		expect(await file.exists()).toBe(false);
-	}, { timeout: 10_000 });
+			// Verify nothing was written
+			const settingsPath = join(tempDir, ".claude", "settings.json");
+			const file = Bun.file(settingsPath);
+			expect(await file.exists()).toBe(false);
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("installs hook into empty settings", async () => {
-		const { stdout, exitCode } = await runInstall("--global");
-		expect(exitCode).toBe(0);
-		expect(stdout).toContain("Installed tyr hook");
+	test(
+		"installs hook into empty settings",
+		async () => {
+			const { stdout, exitCode } = await runInstall("--global");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("Installed tyr hook");
 
-		const settingsPath = join(tempDir, ".claude", "settings.json");
-		const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
-		expect(isInstalled(settings)).toBe(true);
-	}, { timeout: 10_000 });
+			const settingsPath = join(tempDir, ".claude", "settings.json");
+			const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
+			expect(isInstalled(settings)).toBe(true);
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("re-install overwrites existing hook", async () => {
-		await runInstall("--global");
-		const { stdout, exitCode } = await runInstall("--global");
-		expect(exitCode).toBe(0);
-		expect(stdout).toContain("Updated tyr hook");
+	test(
+		"re-install overwrites existing hook",
+		async () => {
+			await runInstall("--global");
+			const { stdout, exitCode } = await runInstall("--global");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("Updated tyr hook");
 
-		// Verify only one tyr entry exists (no duplicates)
-		const settingsPath = join(tempDir, ".claude", "settings.json");
-		const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
-		const permReqs = settings.hooks.PermissionRequest;
-		const tyrEntries = permReqs.filter((e: Record<string, unknown>) => {
-			const hooks = e.hooks as Record<string, unknown>[];
-			return hooks?.some(
-				(h) => typeof h.command === "string" && h.command.startsWith("tyr "),
-			);
-		});
-		expect(tyrEntries).toHaveLength(1);
-	}, { timeout: 10_000 });
+			// Verify only one tyr entry exists (no duplicates)
+			const settingsPath = join(tempDir, ".claude", "settings.json");
+			const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
+			const permReqs = settings.hooks.PermissionRequest;
+			const tyrEntries = permReqs.filter((e: Record<string, unknown>) => {
+				const hooks = e.hooks as Record<string, unknown>[];
+				return hooks?.some(
+					(h) => typeof h.command === "string" && h.command.startsWith("tyr "),
+				);
+			});
+			expect(tyrEntries).toHaveLength(1);
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("does not clobber existing hooks", async () => {
-		const settingsPath = join(tempDir, ".claude", "settings.json");
-		await writeSettings(settingsPath, {
-			hooks: {
-				PermissionRequest: [
-					{ matcher: "Write", hooks: [{ type: "command", command: "other" }] },
-				],
-			},
-		});
+	test(
+		"does not clobber existing hooks",
+		async () => {
+			const settingsPath = join(tempDir, ".claude", "settings.json");
+			await writeSettings(settingsPath, {
+				hooks: {
+					PermissionRequest: [
+						{
+							matcher: "Write",
+							hooks: [{ type: "command", command: "other" }],
+						},
+					],
+				},
+			});
 
-		await runInstall("--global");
+			await runInstall("--global");
 
-		const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
-		const permReqs = settings.hooks.PermissionRequest;
-		expect(permReqs).toHaveLength(2);
-		expect(permReqs[0].matcher).toBe("Write");
-	}, { timeout: 10_000 });
+			const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
+			const permReqs = settings.hooks.PermissionRequest;
+			expect(permReqs).toHaveLength(2);
+			expect(permReqs[0].matcher).toBe("Write");
+		},
+		{ timeout: 10_000 },
+	);
 });
 
 describe.concurrent("removeHook", () => {
@@ -262,7 +281,7 @@ describe.concurrent("removeHook", () => {
 			},
 		});
 		expect(result).not.toBeNull();
-		expect(getPermReqs(result!)).toHaveLength(1);
+		expect(getPermReqs(result as Record<string, unknown>)).toHaveLength(1);
 	});
 
 	test("removes PermissionRequest key when tyr was the only entry", () => {
@@ -277,7 +296,7 @@ describe.concurrent("removeHook", () => {
 			},
 		});
 		expect(result).not.toBeNull();
-		expect(result!.hooks).toBeUndefined();
+		expect((result as Record<string, unknown>).hooks).toBeUndefined();
 	});
 
 	test("preserves other hook event types", () => {
@@ -289,11 +308,13 @@ describe.concurrent("removeHook", () => {
 						hooks: [{ type: "command", command: "tyr judge" }],
 					},
 				],
-				PostToolUse: [{ matcher: "*", hooks: [{ type: "command", command: "logger" }] }],
+				PostToolUse: [
+					{ matcher: "*", hooks: [{ type: "command", command: "logger" }] },
+				],
 			},
 		});
 		expect(result).not.toBeNull();
-		const resultHooks = result!.hooks as Record<string, unknown>;
+		const resultHooks = result?.hooks as Record<string, unknown>;
 		expect(resultHooks.PermissionRequest).toBeUndefined();
 		expect(resultHooks.PostToolUse).toBeDefined();
 	});
@@ -311,7 +332,7 @@ describe.concurrent("removeHook", () => {
 			},
 		});
 		expect(result).not.toBeNull();
-		expect(result!.permissions).toEqual({ allow: ["ls"] });
+		expect(result?.permissions).toEqual({ allow: ["ls"] });
 	});
 });
 
@@ -347,61 +368,80 @@ describe("tyr uninstall (integration)", () => {
 		return { stdout, stderr, exitCode };
 	}
 
-	test("uninstall when not installed exits 0 with message", async () => {
-		const { stdout, exitCode } = await runCmd("uninstall", "--global");
-		expect(exitCode).toBe(0);
-		expect(stdout).toContain("not found");
-	}, { timeout: 10_000 });
+	test(
+		"uninstall when not installed exits 0 with message",
+		async () => {
+			const { stdout, exitCode } = await runCmd("uninstall", "--global");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("not found");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("uninstall after install removes the hook", async () => {
-		await runCmd("install", "--global");
-		const { stdout, exitCode } = await runCmd("uninstall", "--global");
-		expect(exitCode).toBe(0);
-		expect(stdout).toContain("Removed tyr hook");
+	test(
+		"uninstall after install removes the hook",
+		async () => {
+			await runCmd("install", "--global");
+			const { stdout, exitCode } = await runCmd("uninstall", "--global");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("Removed tyr hook");
 
-		const settingsPath = join(tempDir, ".claude", "settings.json");
-		const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
-		expect(isInstalled(settings)).toBe(false);
-	}, { timeout: 10_000 });
+			const settingsPath = join(tempDir, ".claude", "settings.json");
+			const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
+			expect(isInstalled(settings)).toBe(false);
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("uninstall --dry-run does not modify file", async () => {
-		await runCmd("install", "--global");
-		const settingsPath = join(tempDir, ".claude", "settings.json");
-		const before = await readFile(settingsPath, "utf-8");
+	test(
+		"uninstall --dry-run does not modify file",
+		async () => {
+			await runCmd("install", "--global");
+			const settingsPath = join(tempDir, ".claude", "settings.json");
+			const before = await readFile(settingsPath, "utf-8");
 
-		const { stdout, exitCode } = await runCmd(
-			"uninstall",
-			"--global",
-			"--dry-run",
-		);
-		expect(exitCode).toBe(0);
-		expect(stdout).toContain("Would write to");
+			const { stdout, exitCode } = await runCmd(
+				"uninstall",
+				"--global",
+				"--dry-run",
+			);
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("Would write to");
 
-		const after = await readFile(settingsPath, "utf-8");
-		expect(after).toBe(before);
-	}, { timeout: 10_000 });
+			const after = await readFile(settingsPath, "utf-8");
+			expect(after).toBe(before);
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("uninstall preserves other hooks", async () => {
-		const settingsPath = join(tempDir, ".claude", "settings.json");
-		await writeSettings(settingsPath, {
-			hooks: {
-				PermissionRequest: [
-					{ matcher: "Write", hooks: [{ type: "command", command: "other" }] },
-					{
-						matcher: "Bash",
-						hooks: [{ type: "command", command: "tyr judge" }],
-					},
-				],
-			},
-		});
+	test(
+		"uninstall preserves other hooks",
+		async () => {
+			const settingsPath = join(tempDir, ".claude", "settings.json");
+			await writeSettings(settingsPath, {
+				hooks: {
+					PermissionRequest: [
+						{
+							matcher: "Write",
+							hooks: [{ type: "command", command: "other" }],
+						},
+						{
+							matcher: "Bash",
+							hooks: [{ type: "command", command: "tyr judge" }],
+						},
+					],
+				},
+			});
 
-		const { exitCode } = await runCmd("uninstall", "--global");
-		expect(exitCode).toBe(0);
+			const { exitCode } = await runCmd("uninstall", "--global");
+			expect(exitCode).toBe(0);
 
-		const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
-		expect(isInstalled(settings)).toBe(false);
-		const permReqs = getPermReqs(settings);
-		expect(permReqs).toHaveLength(1);
-		expect(permReqs[0]!.matcher).toBe("Write");
-	}, { timeout: 10_000 });
+			const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
+			expect(isInstalled(settings)).toBe(false);
+			const permReqs = getPermReqs(settings);
+			expect(permReqs).toHaveLength(1);
+			expect(permReqs[0]?.matcher).toBe("Write");
+		},
+		{ timeout: 10_000 },
+	);
 });

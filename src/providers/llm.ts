@@ -125,7 +125,15 @@ export class LlmProvider implements Provider {
 		};
 
 		const proc = Bun.spawn(
-			["claude", "-p", "--output-format", "text", "--no-session-persistence", "--model", this.model],
+			[
+				"claude",
+				"-p",
+				"--output-format",
+				"text",
+				"--no-session-persistence",
+				"--model",
+				this.model,
+			],
 			{
 				stdin: new Response(prompt).body,
 				stdout: "pipe",
@@ -134,7 +142,7 @@ export class LlmProvider implements Provider {
 			},
 		);
 
-		let timer: Timer;
+		let timer: Timer | undefined;
 		const result = await Promise.race([
 			(async () => {
 				const [stdout, stderr] = await Promise.all([
@@ -161,7 +169,7 @@ export class LlmProvider implements Provider {
 				}, this.timeoutMs);
 			}),
 		]);
-		clearTimeout(timer!);
+		clearTimeout(timer);
 
 		if (this.verbose) {
 			console.error(

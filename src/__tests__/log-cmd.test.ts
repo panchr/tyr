@@ -53,85 +53,123 @@ afterEach(async () => {
 });
 
 describe("tyr log", () => {
-	test("empty log shows friendly message", async () => {
-		const { stdout, exitCode } = await runLog();
-		expect(exitCode).toBe(0);
-		expect(stdout).toContain("No log entries yet.");
-	}, { timeout: 10_000 });
+	test(
+		"empty log shows friendly message",
+		async () => {
+			const { stdout, exitCode } = await runLog();
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("No log entries yet.");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("displays entries with header", async () => {
-		await writeEntries(makeEntry(), makeEntry({ tool_name: "Read" }));
-		const { stdout, exitCode } = await runLog();
-		expect(exitCode).toBe(0);
-		expect(stdout).toContain("TIME");
-		expect(stdout).toContain("DECISION");
-		expect(stdout).toContain("PROJECT");
-		expect(stdout).toContain("TOOL");
-		expect(stdout).toContain("Bash");
-		expect(stdout).toContain("Read");
-	}, { timeout: 10_000 });
+	test(
+		"displays entries with header",
+		async () => {
+			await writeEntries(makeEntry(), makeEntry({ tool_name: "Read" }));
+			const { stdout, exitCode } = await runLog();
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("TIME");
+			expect(stdout).toContain("DECISION");
+			expect(stdout).toContain("PROJECT");
+			expect(stdout).toContain("TOOL");
+			expect(stdout).toContain("Bash");
+			expect(stdout).toContain("Read");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("displays cwd in output", async () => {
-		await writeEntries(makeEntry({ cwd: "/my/project" }));
-		const { stdout } = await runLog();
-		expect(stdout).toContain("/my/project");
-	}, { timeout: 10_000 });
+	test(
+		"displays cwd in output",
+		async () => {
+			await writeEntries(makeEntry({ cwd: "/my/project" }));
+			const { stdout } = await runLog();
+			expect(stdout).toContain("/my/project");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("--last limits output", async () => {
-		await writeEntries(
-			makeEntry({ tool_input: { command: "cmd-one" } }),
-			makeEntry({ tool_input: { command: "cmd-two" } }),
-			makeEntry({ tool_input: { command: "cmd-three" } }),
-		);
-		const { stdout, exitCode } = await runLog("--last", "1");
-		expect(exitCode).toBe(0);
-		expect(stdout).toContain("cmd-three");
-		expect(stdout).not.toContain("cmd-one");
-	}, { timeout: 10_000 });
+	test(
+		"--last limits output",
+		async () => {
+			await writeEntries(
+				makeEntry({ tool_input: { command: "cmd-one" } }),
+				makeEntry({ tool_input: { command: "cmd-two" } }),
+				makeEntry({ tool_input: { command: "cmd-three" } }),
+			);
+			const { stdout, exitCode } = await runLog("--last", "1");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("cmd-three");
+			expect(stdout).not.toContain("cmd-one");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("--json outputs valid JSONL", async () => {
-		await writeEntries(
-			makeEntry({ session_id: "j1" }),
-			makeEntry({ session_id: "j2" }),
-		);
-		const { stdout, exitCode } = await runLog("--json");
-		expect(exitCode).toBe(0);
-		const lines = stdout.trim().split("\n");
-		expect(lines).toHaveLength(2);
-		const first = JSON.parse(lines[0] as string);
-		expect(first.session_id).toBe("j1");
-		const second = JSON.parse(lines[1] as string);
-		expect(second.session_id).toBe("j2");
-	}, { timeout: 10_000 });
+	test(
+		"--json outputs valid JSONL",
+		async () => {
+			await writeEntries(
+				makeEntry({ session_id: "j1" }),
+				makeEntry({ session_id: "j2" }),
+			);
+			const { stdout, exitCode } = await runLog("--json");
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(2);
+			const first = JSON.parse(lines[0] as string);
+			expect(first.session_id).toBe("j1");
+			const second = JSON.parse(lines[1] as string);
+			expect(second.session_id).toBe("j2");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("--json --last combines correctly", async () => {
-		await writeEntries(
-			makeEntry({ session_id: "a" }),
-			makeEntry({ session_id: "b" }),
-			makeEntry({ session_id: "c" }),
-		);
-		const { stdout, exitCode } = await runLog("--json", "--last", "2");
-		expect(exitCode).toBe(0);
-		const lines = stdout.trim().split("\n");
-		expect(lines).toHaveLength(2);
-		expect(JSON.parse(lines[0] as string).session_id).toBe("b");
-	}, { timeout: 10_000 });
+	test(
+		"--json --last combines correctly",
+		async () => {
+			await writeEntries(
+				makeEntry({ session_id: "a" }),
+				makeEntry({ session_id: "b" }),
+				makeEntry({ session_id: "c" }),
+			);
+			const { stdout, exitCode } = await runLog("--json", "--last", "2");
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(2);
+			expect(JSON.parse(lines[0] as string).session_id).toBe("b");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("shows command from tool_input", async () => {
-		await writeEntries(makeEntry({ tool_input: { command: "bun test" } }));
-		const { stdout } = await runLog();
-		expect(stdout).toContain("bun test");
-	}, { timeout: 10_000 });
+	test(
+		"shows command from tool_input",
+		async () => {
+			await writeEntries(makeEntry({ tool_input: { command: "bun test" } }));
+			const { stdout } = await runLog();
+			expect(stdout).toContain("bun test");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("shows file_path when no command", async () => {
-		await writeEntries(makeEntry({ tool_input: { file_path: "/etc/hosts" } }));
-		const { stdout } = await runLog();
-		expect(stdout).toContain("/etc/hosts");
-	}, { timeout: 10_000 });
+	test(
+		"shows file_path when no command",
+		async () => {
+			await writeEntries(
+				makeEntry({ tool_input: { file_path: "/etc/hosts" } }),
+			);
+			const { stdout } = await runLog();
+			expect(stdout).toContain("/etc/hosts");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("rejects unknown flags", async () => {
-		const { stderr, exitCode } = await runLog("-j");
-		expect(exitCode).toBe(1);
-		expect(stderr).toContain("Unknown option: -j");
-	}, { timeout: 10_000 });
+	test(
+		"rejects unknown flags",
+		async () => {
+			const { stderr, exitCode } = await runLog("-j");
+			expect(exitCode).toBe(1);
+			expect(stderr).toContain("Unknown option: -j");
+		},
+		{ timeout: 10_000 },
+	);
 });

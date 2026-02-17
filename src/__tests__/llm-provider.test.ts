@@ -194,9 +194,7 @@ describe("LlmProvider spawn", () => {
 		const stdout = new ReadableStream({
 			start(controller) {
 				controller.enqueue(
-					new TextEncoder().encode(
-						'{"decision": "allow", "reason": "ok"}',
-					),
+					new TextEncoder().encode('{"decision": "allow", "reason": "ok"}'),
 				);
 				controller.close();
 			},
@@ -218,9 +216,9 @@ describe("LlmProvider spawn", () => {
 		await provider.checkPermission(req);
 
 		expect(spawned).toHaveBeenCalledTimes(1);
-		const call = spawned.mock.calls[0]!;
+		const call = spawned.mock.calls[0] as [string[], Record<string, unknown>?];
 		const args = call[0];
-		const opts = call[1] as Record<string, unknown> | undefined;
+		const opts = call[1];
 		expect(Array.isArray(args)).toBe(true);
 		expect(args[0]).toBe("claude");
 		expect(opts?.shell).toBeUndefined();

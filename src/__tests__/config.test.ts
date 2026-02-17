@@ -173,38 +173,58 @@ describe("tyr config CLI (integration)", () => {
 		return { stdout, stderr, exitCode };
 	}
 
-	test("config show prints defaults", async () => {
-		const { stdout, exitCode } = await runConfig("show");
-		expect(exitCode).toBe(0);
-		const parsed = JSON.parse(stdout);
-		expect(parsed).toEqual(DEFAULT_TYR_CONFIG);
-	}, { timeout: 10_000 });
+	test(
+		"config show prints defaults",
+		async () => {
+			const { stdout, exitCode } = await runConfig("show");
+			expect(exitCode).toBe(0);
+			const parsed = JSON.parse(stdout);
+			expect(parsed).toEqual(DEFAULT_TYR_CONFIG);
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("config set updates a value", async () => {
-		const setResult = await runConfig("set", "failOpen", "true");
-		expect(setResult.exitCode).toBe(0);
-		expect(setResult.stdout).toContain("Set failOpen = true");
+	test(
+		"config set updates a value",
+		async () => {
+			const setResult = await runConfig("set", "failOpen", "true");
+			expect(setResult.exitCode).toBe(0);
+			expect(setResult.stdout).toContain("Set failOpen = true");
 
-		const showResult = await runConfig("show");
-		const parsed = JSON.parse(showResult.stdout);
-		expect(parsed.failOpen).toBe(true);
-	}, { timeout: 10_000 });
+			const showResult = await runConfig("show");
+			const parsed = JSON.parse(showResult.stdout);
+			expect(parsed.failOpen).toBe(true);
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("config set rejects unknown key", async () => {
-		const { stderr, exitCode } = await runConfig("set", "badKey", "true");
-		expect(exitCode).toBe(1);
-		expect(stderr).toContain("Unknown config key");
-	}, { timeout: 10_000 });
+	test(
+		"config set rejects unknown key",
+		async () => {
+			const { stderr, exitCode } = await runConfig("set", "badKey", "true");
+			expect(exitCode).toBe(1);
+			expect(stderr).toContain("Unknown config key");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("config set rejects invalid value", async () => {
-		const { stderr, exitCode } = await runConfig("set", "failOpen", "maybe");
-		expect(exitCode).toBe(1);
-		expect(stderr).toContain("Invalid value");
-	}, { timeout: 10_000 });
+	test(
+		"config set rejects invalid value",
+		async () => {
+			const { stderr, exitCode } = await runConfig("set", "failOpen", "maybe");
+			expect(exitCode).toBe(1);
+			expect(stderr).toContain("Invalid value");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("config path prints path", async () => {
-		const { stdout, exitCode } = await runConfig("path");
-		expect(exitCode).toBe(0);
-		expect(stdout.trim()).toContain("config.json");
-	}, { timeout: 10_000 });
+	test(
+		"config path prints path",
+		async () => {
+			const { stdout, exitCode } = await runConfig("path");
+			expect(exitCode).toBe(0);
+			expect(stdout.trim()).toContain("config.json");
+		},
+		{ timeout: 10_000 },
+	);
 });

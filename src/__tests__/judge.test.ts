@@ -119,47 +119,79 @@ async function runJudge(
 }
 
 describe.concurrent("tyr judge (integration)", () => {
-	test("valid request -> exit 0, empty stdout (fall-through)", async () => {
-		const { stdout, exitCode } = await runJudge(JSON.stringify(VALID_REQUEST));
-		expect(exitCode).toBe(0);
-		expect(stdout.trim()).toBe("");
-	}, { timeout: 10_000 });
+	test(
+		"valid request -> exit 0, empty stdout (fall-through)",
+		async () => {
+			const { stdout, exitCode } = await runJudge(
+				JSON.stringify(VALID_REQUEST),
+			);
+			expect(exitCode).toBe(0);
+			expect(stdout.trim()).toBe("");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("malformed JSON -> exit 2", async () => {
-		const { exitCode } = await runJudge("not json{{{");
-		expect(exitCode).toBe(2);
-	}, { timeout: 10_000 });
+	test(
+		"malformed JSON -> exit 2",
+		async () => {
+			const { exitCode } = await runJudge("not json{{{");
+			expect(exitCode).toBe(2);
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("valid JSON but wrong shape -> exit 2", async () => {
-		const { exitCode } = await runJudge(JSON.stringify({ foo: "bar" }));
-		expect(exitCode).toBe(2);
-	}, { timeout: 10_000 });
+	test(
+		"valid JSON but wrong shape -> exit 2",
+		async () => {
+			const { exitCode } = await runJudge(JSON.stringify({ foo: "bar" }));
+			expect(exitCode).toBe(2);
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("empty stdin -> exit 2", async () => {
-		const { exitCode } = await runJudge("");
-		expect(exitCode).toBe(2);
-	}, { timeout: 10_000 });
+	test(
+		"empty stdin -> exit 2",
+		async () => {
+			const { exitCode } = await runJudge("");
+			expect(exitCode).toBe(2);
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("--verbose emits debug info to stderr", async () => {
-		const { stderr, exitCode } = await runJudge(JSON.stringify(VALID_REQUEST), [
-			"--verbose",
-		]);
-		expect(exitCode).toBe(0);
-		expect(stderr).toContain("[tyr]");
-		expect(stderr).toContain("tool=Bash");
-	}, { timeout: 10_000 });
+	test(
+		"--verbose emits debug info to stderr",
+		async () => {
+			const { stderr, exitCode } = await runJudge(
+				JSON.stringify(VALID_REQUEST),
+				["--verbose"],
+			);
+			expect(exitCode).toBe(0);
+			expect(stderr).toContain("[tyr]");
+			expect(stderr).toContain("tool=Bash");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("--verbose on malformed input shows error on stderr", async () => {
-		const { stderr, exitCode } = await runJudge("{bad", ["--verbose"]);
-		expect(exitCode).toBe(2);
-		expect(stderr).toContain("[tyr]");
-	}, { timeout: 10_000 });
+	test(
+		"--verbose on malformed input shows error on stderr",
+		async () => {
+			const { stderr, exitCode } = await runJudge("{bad", ["--verbose"]);
+			expect(exitCode).toBe(2);
+			expect(stderr).toContain("[tyr]");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("rejects unknown flags", async () => {
-		const { stderr, exitCode } = await runJudge(JSON.stringify(VALID_REQUEST), [
-			"--bogus",
-		]);
-		expect(exitCode).toBe(1);
-		expect(stderr).toContain("Unknown option: --bogus");
-	}, { timeout: 10_000 });
+	test(
+		"rejects unknown flags",
+		async () => {
+			const { stderr, exitCode } = await runJudge(
+				JSON.stringify(VALID_REQUEST),
+				["--bogus"],
+			);
+			expect(exitCode).toBe(1);
+			expect(stderr).toContain("Unknown option: --bogus");
+		},
+		{ timeout: 10_000 },
+	);
 });

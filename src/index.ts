@@ -5,8 +5,8 @@ import config from "./commands/config.ts";
 import debug from "./commands/debug.ts";
 import install from "./commands/install.ts";
 import judge from "./commands/judge.ts";
-import uninstall from "./commands/uninstall.ts";
 import log from "./commands/log.ts";
+import uninstall from "./commands/uninstall.ts";
 import version from "./commands/version.ts";
 import { VERSION } from "./version.ts";
 

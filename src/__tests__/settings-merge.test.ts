@@ -179,134 +179,157 @@ describe("tyr judge: settings merge across scopes", () => {
 		await rm(tempDir, { recursive: true, force: true });
 	});
 
-	test("local deny overrides project allow", async () => {
-		await writeProjectSettings(tempDir, {
-			permissions: { allow: ["Bash(git *)"] },
-		});
-		await writeLocalSettings(tempDir, {
-			permissions: { deny: ["Bash(git push *)"] },
-		});
+	test(
+		"local deny overrides project allow",
+		async () => {
+			await writeProjectSettings(tempDir, {
+				permissions: { allow: ["Bash(git *)"] },
+			});
+			await writeLocalSettings(tempDir, {
+				permissions: { deny: ["Bash(git push *)"] },
+			});
 
-		const req = makePermissionRequest({
-			cwd: tempDir,
-			command: "git push origin main",
-		});
-		const result = await runJudge(JSON.stringify(req), {
-			env: isolatedEnv(tempDir),
-		});
+			const req = makePermissionRequest({
+				cwd: tempDir,
+				command: "git push origin main",
+			});
+			const result = await runJudge(JSON.stringify(req), {
+				env: isolatedEnv(tempDir),
+			});
 
-		expect(result.exitCode).toBe(0);
-		const response = JSON.parse(result.stdout) as HookResponse;
-		expect(response.hookSpecificOutput.decision.behavior).toBe("deny");
-	}, { timeout: 10_000 });
+			expect(result.exitCode).toBe(0);
+			const response = JSON.parse(result.stdout) as HookResponse;
+			expect(response.hookSpecificOutput.decision.behavior).toBe("deny");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("user-global allow is picked up via CLAUDE_CONFIG_DIR", async () => {
-		const userDir = join(tempDir, "user-claude");
-		await writeUserSettings(userDir, {
-			permissions: { allow: ["Bash(npm test)"] },
-		});
+	test(
+		"user-global allow is picked up via CLAUDE_CONFIG_DIR",
+		async () => {
+			const userDir = join(tempDir, "user-claude");
+			await writeUserSettings(userDir, {
+				permissions: { allow: ["Bash(npm test)"] },
+			});
 
-		const req = makePermissionRequest({
-			cwd: tempDir,
-			command: "npm test",
-		});
-		const result = await runJudge(JSON.stringify(req), {
-			env: isolatedEnv(tempDir, userDir),
-		});
+			const req = makePermissionRequest({
+				cwd: tempDir,
+				command: "npm test",
+			});
+			const result = await runJudge(JSON.stringify(req), {
+				env: isolatedEnv(tempDir, userDir),
+			});
 
-		expect(result.exitCode).toBe(0);
-		const response = JSON.parse(result.stdout) as HookResponse;
-		expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
-	}, { timeout: 10_000 });
+			expect(result.exitCode).toBe(0);
+			const response = JSON.parse(result.stdout) as HookResponse;
+			expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("project allow and user allow both contribute rules", async () => {
-		const userDir = join(tempDir, "user-claude");
-		await writeProjectSettings(tempDir, {
-			permissions: { allow: ["Bash(git *)"] },
-		});
-		await writeUserSettings(userDir, {
-			permissions: { allow: ["Bash(npm test)"] },
-		});
+	test(
+		"project allow and user allow both contribute rules",
+		async () => {
+			const userDir = join(tempDir, "user-claude");
+			await writeProjectSettings(tempDir, {
+				permissions: { allow: ["Bash(git *)"] },
+			});
+			await writeUserSettings(userDir, {
+				permissions: { allow: ["Bash(npm test)"] },
+			});
 
-		// Verify project rule works
-		const gitReq = makePermissionRequest({
-			cwd: tempDir,
-			command: "git status",
-		});
-		const gitResult = await runJudge(JSON.stringify(gitReq), {
-			env: isolatedEnv(tempDir, userDir),
-		});
-		expect(gitResult.exitCode).toBe(0);
-		const gitResponse = JSON.parse(gitResult.stdout) as HookResponse;
-		expect(gitResponse.hookSpecificOutput.decision.behavior).toBe("allow");
+			// Verify project rule works
+			const gitReq = makePermissionRequest({
+				cwd: tempDir,
+				command: "git status",
+			});
+			const gitResult = await runJudge(JSON.stringify(gitReq), {
+				env: isolatedEnv(tempDir, userDir),
+			});
+			expect(gitResult.exitCode).toBe(0);
+			const gitResponse = JSON.parse(gitResult.stdout) as HookResponse;
+			expect(gitResponse.hookSpecificOutput.decision.behavior).toBe("allow");
 
-		// Verify user rule works
-		const npmReq = makePermissionRequest({ cwd: tempDir, command: "npm test" });
-		const npmResult = await runJudge(JSON.stringify(npmReq), {
-			env: isolatedEnv(tempDir, userDir),
-		});
-		expect(npmResult.exitCode).toBe(0);
-		const npmResponse = JSON.parse(npmResult.stdout) as HookResponse;
-		expect(npmResponse.hookSpecificOutput.decision.behavior).toBe("allow");
-	}, { timeout: 10_000 });
+			// Verify user rule works
+			const npmReq = makePermissionRequest({
+				cwd: tempDir,
+				command: "npm test",
+			});
+			const npmResult = await runJudge(JSON.stringify(npmReq), {
+				env: isolatedEnv(tempDir, userDir),
+			});
+			expect(npmResult.exitCode).toBe(0);
+			const npmResponse = JSON.parse(npmResult.stdout) as HookResponse;
+			expect(npmResponse.hookSpecificOutput.decision.behavior).toBe("allow");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("three scopes: local deny + project allow + user allow", async () => {
-		const userDir = join(tempDir, "user-claude");
-		await writeLocalSettings(tempDir, {
-			permissions: { deny: ["Bash(git push --force *)"] },
-		});
-		await writeProjectSettings(tempDir, {
-			permissions: { allow: ["Bash(git *)"] },
-		});
-		await writeUserSettings(userDir, {
-			permissions: { allow: ["Bash(echo *)"] },
-		});
+	test(
+		"three scopes: local deny + project allow + user allow",
+		async () => {
+			const userDir = join(tempDir, "user-claude");
+			await writeLocalSettings(tempDir, {
+				permissions: { deny: ["Bash(git push --force *)"] },
+			});
+			await writeProjectSettings(tempDir, {
+				permissions: { allow: ["Bash(git *)"] },
+			});
+			await writeUserSettings(userDir, {
+				permissions: { allow: ["Bash(echo *)"] },
+			});
 
-		// git status is allowed (project), force push is denied (local)
-		const allowReq = makePermissionRequest({
-			cwd: tempDir,
-			command: "git status",
-		});
-		const allowResult = await runJudge(JSON.stringify(allowReq), {
-			env: isolatedEnv(tempDir, userDir),
-		});
-		expect(allowResult.exitCode).toBe(0);
-		const allowResponse = JSON.parse(allowResult.stdout) as HookResponse;
-		expect(allowResponse.hookSpecificOutput.decision.behavior).toBe("allow");
+			// git status is allowed (project), force push is denied (local)
+			const allowReq = makePermissionRequest({
+				cwd: tempDir,
+				command: "git status",
+			});
+			const allowResult = await runJudge(JSON.stringify(allowReq), {
+				env: isolatedEnv(tempDir, userDir),
+			});
+			expect(allowResult.exitCode).toBe(0);
+			const allowResponse = JSON.parse(allowResult.stdout) as HookResponse;
+			expect(allowResponse.hookSpecificOutput.decision.behavior).toBe("allow");
 
-		const denyReq = makePermissionRequest({
-			cwd: tempDir,
-			command: "git push --force origin main",
-		});
-		const denyResult = await runJudge(JSON.stringify(denyReq), {
-			env: isolatedEnv(tempDir, userDir),
-		});
-		expect(denyResult.exitCode).toBe(0);
-		const denyResponse = JSON.parse(denyResult.stdout) as HookResponse;
-		expect(denyResponse.hookSpecificOutput.decision.behavior).toBe("deny");
-	}, { timeout: 10_000 });
+			const denyReq = makePermissionRequest({
+				cwd: tempDir,
+				command: "git push --force origin main",
+			});
+			const denyResult = await runJudge(JSON.stringify(denyReq), {
+				env: isolatedEnv(tempDir, userDir),
+			});
+			expect(denyResult.exitCode).toBe(0);
+			const denyResponse = JSON.parse(denyResult.stdout) as HookResponse;
+			expect(denyResponse.hookSpecificOutput.decision.behavior).toBe("deny");
+		},
+		{ timeout: 10_000 },
+	);
 
-	test("malformed settings file doesn't crash tyr judge", async () => {
-		await writeProjectSettings(tempDir, {
-			permissions: { allow: ["Bash(echo *)"] },
-		});
-		const claudeDir = join(tempDir, ".claude");
-		await writeFile(
-			join(claudeDir, "settings.local.json"),
-			"{{not json at all",
-			"utf-8",
-		);
+	test(
+		"malformed settings file doesn't crash tyr judge",
+		async () => {
+			await writeProjectSettings(tempDir, {
+				permissions: { allow: ["Bash(echo *)"] },
+			});
+			const claudeDir = join(tempDir, ".claude");
+			await writeFile(
+				join(claudeDir, "settings.local.json"),
+				"{{not json at all",
+				"utf-8",
+			);
 
-		const req = makePermissionRequest({
-			cwd: tempDir,
-			command: "echo hello",
-		});
-		const result = await runJudge(JSON.stringify(req), {
-			env: isolatedEnv(tempDir),
-		});
+			const req = makePermissionRequest({
+				cwd: tempDir,
+				command: "echo hello",
+			});
+			const result = await runJudge(JSON.stringify(req), {
+				env: isolatedEnv(tempDir),
+			});
 
-		expect(result.exitCode).toBe(0);
-		const response = JSON.parse(result.stdout) as HookResponse;
-		expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
-	}, { timeout: 10_000 });
+			expect(result.exitCode).toBe(0);
+			const response = JSON.parse(result.stdout) as HookResponse;
+			expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
+		},
+		{ timeout: 10_000 },
+	);
 });

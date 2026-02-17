@@ -1,7 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { DEFAULT_TYR_CONFIG, TyrConfigSchema, type TyrConfig } from "./types.ts";
+import {
+	DEFAULT_TYR_CONFIG,
+	type TyrConfig,
+	TyrConfigSchema,
+} from "./types.ts";
 
 const CONFIG_DIR = join(homedir(), ".config", "tyr");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
