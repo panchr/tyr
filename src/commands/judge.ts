@@ -5,6 +5,7 @@ import { readConfig } from "../config.ts";
 import { parsePermissionRequest, readStdin } from "../judge.ts";
 import { appendLogEntry, type LogEntry } from "../log.ts";
 import { runPipeline } from "../pipeline.ts";
+import { buildPrompt } from "../prompts.ts";
 import { ChainedCommandsProvider } from "../providers/chained-commands.ts";
 import { LlmProvider } from "../providers/llm.ts";
 import type { HookResponse, Provider } from "../types.ts";
@@ -59,6 +60,10 @@ const judgeArgs = {
 	"llm-can-deny": {
 		type: "boolean" as const,
 		description: "Override llmCanDeny config",
+	},
+	"verbose-log": {
+		type: "boolean" as const,
+		description: "Include LLM prompt and parameters in log entries",
 	},
 };
 
@@ -168,6 +173,8 @@ export default defineCommand({
 		}
 		if (args["llm-can-deny"] !== undefined)
 			config.llmCanDeny = args["llm-can-deny"];
+		if (args["verbose-log"] !== undefined)
+			config.verboseLog = args["verbose-log"];
 
 		const agent = new ClaudeAgent();
 		try {
@@ -216,6 +223,14 @@ export default defineCommand({
 			duration_ms: Math.round(duration),
 			session_id: req.session_id,
 			mode: shadow ? "shadow" : undefined,
+			...(config.verboseLog
+				? {
+						llm_prompt: buildPrompt(req, agent, config.llmCanDeny),
+						llm_model: config.llmModel,
+						llm_timeout: config.llmTimeout,
+						llm_endpoint: config.llmEndpoint,
+					}
+				: {}),
 		};
 
 		try {

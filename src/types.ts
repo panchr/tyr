@@ -64,6 +64,8 @@ export const TyrConfigSchema = z.object({
 	llmTimeout: z.number().default(10),
 	/** Whether the LLM provider can deny requests. When false, LLM can only allow or abstain. */
 	llmCanDeny: z.boolean().default(false),
+	/** Include LLM prompt and parameters in log entries for debugging. */
+	verboseLog: z.boolean().default(false),
 });
 
 export type TyrConfig = z.infer<typeof TyrConfigSchema>;

@@ -199,4 +199,31 @@ describe("tyr judge logging (integration)", () => {
 		},
 		{ timeout: 10_000 },
 	);
+
+	test(
+		"--verbose-log includes LLM fields in log entry",
+		async () => {
+			await setupTempLog();
+			const proc = Bun.spawn(
+				["bun", "run", "src/index.ts", "judge", "--verbose-log"],
+				{
+					cwd: `${import.meta.dir}/../..`,
+					stdout: "pipe",
+					stderr: "pipe",
+					stdin: new Response(JSON.stringify(VALID_REQUEST)).body,
+					env: { ...process.env, TYR_LOG_FILE: logFile },
+				},
+			);
+			expect(await proc.exited).toBe(0);
+
+			const entries = await readLogEntries();
+			expect(entries).toHaveLength(1);
+			expect(entries[0]?.llm_prompt).toBeDefined();
+			expect(entries[0]?.llm_prompt).toContain("permission checker");
+			expect(entries[0]?.llm_model).toBe("haiku");
+			expect(entries[0]?.llm_timeout).toBe(10);
+			expect(entries[0]?.llm_endpoint).toBeDefined();
+		},
+		{ timeout: 10_000 },
+	);
 });

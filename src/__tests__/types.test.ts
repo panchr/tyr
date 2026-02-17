@@ -112,6 +112,7 @@ describe.concurrent("TyrConfig", () => {
 			llmEndpoint: "https://openrouter.ai/api/v1",
 			llmTimeout: 10,
 			llmCanDeny: false,
+			verboseLog: false,
 		});
 	});
 
