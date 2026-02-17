@@ -55,7 +55,7 @@ export const TyrConfigSchema = z.object({
 	/** If true, approve requests when tyr encounters an error. Default: false (fail-closed). */
 	failOpen: z.boolean().default(false),
 	/** LLM provider backend: 'claude' (local CLI) or 'openrouter' (API). */
-	llmProvider: z.string().default("claude"),
+	llmProvider: z.enum(["claude", "openrouter"]).default("claude"),
 	/** Model identifier passed to the LLM provider. */
 	llmModel: z.string().default("haiku"),
 	/** API endpoint (only used when llmProvider is 'openrouter'). */

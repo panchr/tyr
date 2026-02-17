@@ -8,6 +8,7 @@ import { runPipeline } from "../pipeline.ts";
 import { buildPrompt } from "../prompts.ts";
 import { ChainedCommandsProvider } from "../providers/chained-commands.ts";
 import { LlmProvider } from "../providers/llm.ts";
+import { OpenRouterProvider } from "../providers/openrouter.ts";
 import type { HookResponse, Provider } from "../types.ts";
 
 const judgeArgs = {
@@ -155,8 +156,15 @@ export default defineCommand({
 		if (args["cache-checks"] !== undefined)
 			config.cacheChecks = args["cache-checks"];
 		if (args["fail-open"] !== undefined) config.failOpen = args["fail-open"];
-		if (args["llm-provider"] !== undefined)
-			config.llmProvider = args["llm-provider"];
+		if (args["llm-provider"] !== undefined) {
+			const p = args["llm-provider"];
+			if (p !== "claude" && p !== "openrouter") {
+				console.error(`[tyr] invalid --llm-provider value: ${p}`);
+				process.exit(1);
+				return;
+			}
+			config.llmProvider = p;
+		}
 		if (args["llm-model"] !== undefined) config.llmModel = args["llm-model"];
 		if (args["llm-endpoint"] !== undefined)
 			config.llmEndpoint = args["llm-endpoint"];
@@ -188,7 +196,11 @@ export default defineCommand({
 			providers.push(new ChainedCommandsProvider(agent));
 		}
 		if (config.allowPromptChecks) {
-			providers.push(new LlmProvider(agent, config, verbose));
+			if (config.llmProvider === "openrouter") {
+				providers.push(new OpenRouterProvider(agent, config, verbose));
+			} else {
+				providers.push(new LlmProvider(agent, config, verbose));
+			}
 		}
 
 		// Run pipeline
