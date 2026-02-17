@@ -23,6 +23,43 @@ const judgeArgs = {
 		type: "boolean" as const,
 		description: "Skip the pipeline entirely; just log the request and abstain",
 	},
+	// Config overrides (kebab-case flags that override config file values)
+	"allow-chained-commands": {
+		type: "boolean" as const,
+		description: "Override allowChainedCommands config",
+	},
+	"allow-prompt-checks": {
+		type: "boolean" as const,
+		description: "Override allowPromptChecks config",
+	},
+	"cache-checks": {
+		type: "boolean" as const,
+		description: "Override cacheChecks config",
+	},
+	"fail-open": {
+		type: "boolean" as const,
+		description: "Override failOpen config",
+	},
+	"llm-provider": {
+		type: "string" as const,
+		description: "Override llmProvider config",
+	},
+	"llm-model": {
+		type: "string" as const,
+		description: "Override llmModel config",
+	},
+	"llm-endpoint": {
+		type: "string" as const,
+		description: "Override llmEndpoint config",
+	},
+	"llm-timeout": {
+		type: "string" as const,
+		description: "Override llmTimeout config (seconds)",
+	},
+	"llm-can-deny": {
+		type: "boolean" as const,
+		description: "Override llmCanDeny config",
+	},
 };
 
 export default defineCommand({
@@ -104,8 +141,34 @@ export default defineCommand({
 			return;
 		}
 
-		// Build provider pipeline based on config
+		// Build provider pipeline based on config, applying CLI overrides
 		const config = await readConfig();
+		if (args["allow-chained-commands"] !== undefined)
+			config.allowChainedCommands = args["allow-chained-commands"];
+		if (args["allow-prompt-checks"] !== undefined)
+			config.allowPromptChecks = args["allow-prompt-checks"];
+		if (args["cache-checks"] !== undefined)
+			config.cacheChecks = args["cache-checks"];
+		if (args["fail-open"] !== undefined) config.failOpen = args["fail-open"];
+		if (args["llm-provider"] !== undefined)
+			config.llmProvider = args["llm-provider"];
+		if (args["llm-model"] !== undefined) config.llmModel = args["llm-model"];
+		if (args["llm-endpoint"] !== undefined)
+			config.llmEndpoint = args["llm-endpoint"];
+		if (args["llm-timeout"] !== undefined) {
+			const t = Number(args["llm-timeout"]);
+			if (!Number.isFinite(t) || t <= 0) {
+				console.error(
+					`[tyr] invalid --llm-timeout value: ${args["llm-timeout"]}`,
+				);
+				process.exit(1);
+				return;
+			}
+			config.llmTimeout = t;
+		}
+		if (args["llm-can-deny"] !== undefined)
+			config.llmCanDeny = args["llm-can-deny"];
+
 		const agent = new ClaudeAgent();
 		try {
 			await agent.init(req.cwd);

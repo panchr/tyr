@@ -8,6 +8,9 @@ export function rejectUnknownArgs(rawArgs: string[], argsDef: ArgsDef): void {
 	const known = new Set<string>();
 	for (const [name, def] of Object.entries(argsDef)) {
 		known.add(`--${name}`);
+		if ("type" in def && def.type === "boolean") {
+			known.add(`--no-${name}`);
+		}
 		if ("alias" in def) {
 			const aliases = Array.isArray(def.alias) ? def.alias : [def.alias];
 			for (const a of aliases) {

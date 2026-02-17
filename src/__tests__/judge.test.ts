@@ -261,4 +261,61 @@ describe.concurrent("tyr judge (integration)", () => {
 		},
 		{ timeout: 10_000 },
 	);
+
+	test(
+		"--fail-open overrides config to allow on abstain",
+		async () => {
+			const { stdout, exitCode } = await runJudge(
+				JSON.stringify(VALID_REQUEST),
+				["--fail-open"],
+			);
+			expect(exitCode).toBe(0);
+			const response = JSON.parse(stdout);
+			expect(response.hookSpecificOutput.decision.behavior).toBe("allow");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--no-allow-chained-commands disables chained commands provider",
+		async () => {
+			const { stdout, exitCode } = await runJudge(
+				JSON.stringify(VALID_REQUEST),
+				["--no-allow-chained-commands"],
+			);
+			expect(exitCode).toBe(0);
+			// Without chained commands, pipeline abstains -> empty stdout
+			expect(stdout.trim()).toBe("");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"config override flags are accepted without error",
+		async () => {
+			const { exitCode } = await runJudge(JSON.stringify(VALID_REQUEST), [
+				"--llm-model",
+				"sonnet",
+				"--llm-timeout",
+				"30",
+				"--llm-provider",
+				"claude",
+			]);
+			expect(exitCode).toBe(0);
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--llm-timeout rejects invalid values",
+		async () => {
+			const { stderr, exitCode } = await runJudge(
+				JSON.stringify(VALID_REQUEST),
+				["--llm-timeout", "abc"],
+			);
+			expect(exitCode).toBe(1);
+			expect(stderr).toContain("invalid --llm-timeout");
+		},
+		{ timeout: 10_000 },
+	);
 });
