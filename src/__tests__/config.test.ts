@@ -7,6 +7,7 @@ import {
 	isValidKey,
 	parseValue,
 	readConfig,
+	stripJsonComments,
 	writeConfig,
 } from "../config.ts";
 import { DEFAULT_TYR_CONFIG } from "../types.ts";
@@ -76,6 +77,54 @@ describe.concurrent("parseValue", () => {
 	});
 });
 
+describe.concurrent("stripJsonComments", () => {
+	test("passes plain JSON through", () => {
+		const input = '{"key": "value"}';
+		expect(stripJsonComments(input)).toBe(input);
+	});
+
+	test("strips single-line comments", () => {
+		const input = '{\n  // This is a comment\n  "key": "value"\n}';
+		expect(JSON.parse(stripJsonComments(input))).toEqual({ key: "value" });
+	});
+
+	test("strips block comments", () => {
+		const input = '{\n  /* block comment */\n  "key": "value"\n}';
+		expect(JSON.parse(stripJsonComments(input))).toEqual({ key: "value" });
+	});
+
+	test("preserves // inside strings", () => {
+		const input = '{"url": "https://example.com"}';
+		expect(JSON.parse(stripJsonComments(input))).toEqual({
+			url: "https://example.com",
+		});
+	});
+
+	test("preserves /* inside strings", () => {
+		const input = '{"val": "a /* b */ c"}';
+		expect(JSON.parse(stripJsonComments(input))).toEqual({
+			val: "a /* b */ c",
+		});
+	});
+
+	test("handles escaped quotes in strings", () => {
+		const input = '{"val": "say \\"hello\\""}';
+		expect(JSON.parse(stripJsonComments(input))).toEqual({
+			val: 'say "hello"',
+		});
+	});
+
+	test("strips trailing comment after value", () => {
+		const input = '{\n  "key": true // enable this\n}';
+		expect(JSON.parse(stripJsonComments(input))).toEqual({ key: true });
+	});
+
+	test("strips multi-line block comment", () => {
+		const input = '{\n  /*\n   * multi\n   * line\n   */\n  "key": 1\n}';
+		expect(JSON.parse(stripJsonComments(input))).toEqual({ key: 1 });
+	});
+});
+
 describe("readConfig", () => {
 	let tempDir: string;
 	const restoreEnv = saveEnv("TYR_CONFIG_FILE");
@@ -109,6 +158,17 @@ describe("readConfig", () => {
 		expect(config.allowChainedCommands).toBe(
 			DEFAULT_TYR_CONFIG.allowChainedCommands,
 		);
+	});
+
+	test("reads JSONC config with comments", async () => {
+		const path = getConfigPath();
+		await Bun.write(
+			path,
+			'{\n  // Enable fail-open for safety\n  "failOpen": true,\n  /* LLM config */\n  "llmTimeout": 30\n}\n',
+		);
+		const config = await readConfig();
+		expect(config.failOpen).toBe(true);
+		expect(config.llmTimeout).toBe(30);
 	});
 });
 

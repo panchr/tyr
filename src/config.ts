@@ -24,13 +24,48 @@ export function isValidKey(key: string): key is keyof TyrConfig {
 	return VALID_KEYS.has(key as keyof TyrConfig);
 }
 
+/** Strip // and /* comments from a JSON string, preserving strings. */
+export function stripJsonComments(text: string): string {
+	let result = "";
+	let i = 0;
+	while (i < text.length) {
+		// String literal — copy verbatim including escapes
+		if (text[i] === '"') {
+			let j = i + 1;
+			while (j < text.length && text[j] !== '"') {
+				if (text[j] === "\\") j++; // skip escaped char
+				j++;
+			}
+			result += text.slice(i, j + 1);
+			i = j + 1;
+			continue;
+		}
+		// Single-line comment
+		if (text[i] === "/" && text[i + 1] === "/") {
+			const nl = text.indexOf("\n", i);
+			i = nl === -1 ? text.length : nl;
+			continue;
+		}
+		// Block comment
+		if (text[i] === "/" && text[i + 1] === "*") {
+			const end = text.indexOf("*/", i + 2);
+			i = end === -1 ? text.length : end + 2;
+			continue;
+		}
+		result += text[i];
+		i++;
+	}
+	return result;
+}
+
 /** Read tyr's config, returning defaults for missing or invalid files.
- *  Unknown keys are stripped; invalid values fall back to defaults. */
+ *  Supports JSONC (JSON with Comments). Unknown keys are stripped;
+ *  invalid values fall back to defaults. */
 export async function readConfig(): Promise<TyrConfig> {
 	const path = getConfigPath();
 	try {
 		const text = await readFile(path, "utf-8");
-		const raw = JSON.parse(text);
+		const raw = JSON.parse(stripJsonComments(text));
 		return TyrConfigSchema.parse(raw);
 	} catch {
 		return { ...DEFAULT_TYR_CONFIG };
