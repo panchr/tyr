@@ -1,17 +1,22 @@
 {
-  "name": "tyr",
+  "name": "@panchr/tyr",
+  "description": "Intelligent permission management for Claude Code hooks",
   "module": "src/index.ts",
   "type": "module",
   "version": "0.1.0",
-  "private": true,
   "bin": {
     "tyr": "src/index.ts"
   },
+  "files": [
+    "src/",
+    "!src/__tests__/"
+  ],
   "scripts": {
     "start": "bun run src/index.ts",
     "build": "bun run scripts/build.ts",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
+    "test": "bun test",
     "test:smoke": "bun test ./src/__tests__/smoke.ts",
     "typecheck": "tsc --noEmit"
   },
