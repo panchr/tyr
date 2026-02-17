@@ -76,6 +76,36 @@ describe.concurrent("isInstalled", () => {
 			}),
 		).toBe(true);
 	});
+
+	test("returns true when tyr judge --shadow is present", () => {
+		expect(
+			isInstalled({
+				hooks: {
+					PermissionRequest: [
+						{
+							matcher: "Bash",
+							hooks: [{ type: "command", command: "tyr judge --shadow" }],
+						},
+					],
+				},
+			}),
+		).toBe(true);
+	});
+
+	test("returns true when tyr judge --audit is present", () => {
+		expect(
+			isInstalled({
+				hooks: {
+					PermissionRequest: [
+						{
+							matcher: "Bash",
+							hooks: [{ type: "command", command: "tyr judge --audit" }],
+						},
+					],
+				},
+			}),
+		).toBe(true);
+	});
 });
 
 describe.concurrent("mergeHook", () => {
@@ -116,6 +146,47 @@ describe.concurrent("mergeHook", () => {
 	test("preserves non-hook settings", () => {
 		const result = mergeHook({ permissions: { allow: ["ls"] } });
 		expect(result.permissions).toEqual({ allow: ["ls"] });
+	});
+
+	test("generates shadow mode command", () => {
+		const result = mergeHook({}, "shadow");
+		const permReqs = getPermReqs(result);
+		const hooks = (permReqs[0] as Record<string, unknown>).hooks as Record<
+			string,
+			unknown
+		>[];
+		expect(hooks[0]?.command).toBe("tyr judge --shadow");
+	});
+
+	test("generates audit mode command", () => {
+		const result = mergeHook({}, "audit");
+		const permReqs = getPermReqs(result);
+		const hooks = (permReqs[0] as Record<string, unknown>).hooks as Record<
+			string,
+			unknown
+		>[];
+		expect(hooks[0]?.command).toBe("tyr judge --audit");
+	});
+
+	test("replaces existing tyr entry when mode changes", () => {
+		const existing = {
+			hooks: {
+				PermissionRequest: [
+					{
+						matcher: "Bash",
+						hooks: [{ type: "command", command: "tyr judge --shadow" }],
+					},
+				],
+			},
+		};
+		const result = mergeHook(existing, "audit");
+		const permReqs = getPermReqs(result);
+		expect(permReqs).toHaveLength(1);
+		const hooks = (permReqs[0] as Record<string, unknown>).hooks as Record<
+			string,
+			unknown
+		>[];
+		expect(hooks[0]?.command).toBe("tyr judge --audit");
 	});
 });
 
@@ -246,6 +317,50 @@ describe("tyr install (integration)", () => {
 		},
 		{ timeout: 10_000 },
 	);
+
+	test(
+		"--shadow installs hook with shadow flag",
+		async () => {
+			const { stdout, exitCode } = await runInstall("--global", "--shadow");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("Installed tyr hook");
+
+			const settingsPath = join(tempDir, ".claude", "settings.json");
+			const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
+			const hooks = settings.hooks.PermissionRequest[0].hooks;
+			expect(hooks[0].command).toBe("tyr judge --shadow");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--audit installs hook with audit flag",
+		async () => {
+			const { stdout, exitCode } = await runInstall("--global", "--audit");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("Installed tyr hook");
+
+			const settingsPath = join(tempDir, ".claude", "settings.json");
+			const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
+			const hooks = settings.hooks.PermissionRequest[0].hooks;
+			expect(hooks[0].command).toBe("tyr judge --audit");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--shadow and --audit are mutually exclusive",
+		async () => {
+			const { stderr, exitCode } = await runInstall(
+				"--global",
+				"--shadow",
+				"--audit",
+			);
+			expect(exitCode).toBe(1);
+			expect(stderr).toContain("mutually exclusive");
+		},
+		{ timeout: 10_000 },
+	);
 });
 
 describe.concurrent("removeHook", () => {
@@ -333,6 +448,36 @@ describe.concurrent("removeHook", () => {
 		});
 		expect(result).not.toBeNull();
 		expect(result?.permissions).toEqual({ allow: ["ls"] });
+	});
+
+	test("removes tyr entry with shadow mode", () => {
+		const result = removeHook({
+			hooks: {
+				PermissionRequest: [
+					{
+						matcher: "Bash",
+						hooks: [{ type: "command", command: "tyr judge --shadow" }],
+					},
+				],
+			},
+		});
+		expect(result).not.toBeNull();
+		expect((result as Record<string, unknown>).hooks).toBeUndefined();
+	});
+
+	test("removes tyr entry with audit mode", () => {
+		const result = removeHook({
+			hooks: {
+				PermissionRequest: [
+					{
+						matcher: "Bash",
+						hooks: [{ type: "command", command: "tyr judge --audit" }],
+					},
+				],
+			},
+		});
+		expect(result).not.toBeNull();
+		expect((result as Record<string, unknown>).hooks).toBeUndefined();
 	});
 });
 

@@ -2,16 +2,19 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-const TYR_HOOK = {
-	type: "command",
-	command: "tyr judge",
-};
+export type JudgeMode = "shadow" | "audit" | undefined;
 
-/** The hook entry tyr installs for PermissionRequest events. */
-const TYR_HOOK_ENTRY = {
-	matcher: "Bash",
-	hooks: [TYR_HOOK],
-};
+function tyrCommand(mode: JudgeMode): string {
+	if (mode) return `tyr judge --${mode}`;
+	return "tyr judge";
+}
+
+function tyrHookEntry(mode: JudgeMode) {
+	return {
+		matcher: "Bash",
+		hooks: [{ type: "command", command: tyrCommand(mode) }],
+	};
+}
 
 export function getSettingsPath(scope: "global" | "project"): string {
 	if (scope === "global") {
@@ -40,20 +43,14 @@ export function isInstalled(settings: Record<string, unknown>): boolean {
 	const permReqs = hooks.PermissionRequest;
 	if (!Array.isArray(permReqs)) return false;
 
-	return permReqs.some((entry: Record<string, unknown>) => {
-		const entryHooks = entry.hooks;
-		if (!Array.isArray(entryHooks)) return false;
-		return entryHooks.some(
-			(h: Record<string, unknown>) =>
-				h.type === "command" && h.command === "tyr judge",
-		);
-	});
+	return permReqs.some((entry: Record<string, unknown>) => isTyrEntry(entry));
 }
 
 /** Merge the tyr hook into settings without clobbering existing hooks.
  *  If a tyr entry already exists it is replaced so install is idempotent. */
 export function mergeHook(
 	settings: Record<string, unknown>,
+	mode?: JudgeMode,
 ): Record<string, unknown> {
 	const result = { ...settings };
 	const hooks = (result.hooks ?? {}) as Record<string, unknown>;
@@ -63,7 +60,7 @@ export function mergeHook(
 			)
 		: [];
 
-	permReqs.push(TYR_HOOK_ENTRY);
+	permReqs.push(tyrHookEntry(mode));
 
 	result.hooks = { ...hooks, PermissionRequest: permReqs };
 	return result;
