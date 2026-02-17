@@ -172,4 +172,164 @@ describe("tyr log", () => {
 		},
 		{ timeout: 10_000 },
 	);
+
+	test(
+		"--decision filters by decision",
+		async () => {
+			await writeEntries(
+				makeEntry({ decision: "allow", provider: "chained-commands" }),
+				makeEntry({ decision: "deny", provider: "llm" }),
+				makeEntry({ decision: "abstain" }),
+			);
+			const { stdout, exitCode } = await runLog(
+				"--json",
+				"--decision",
+				"allow",
+			);
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(1);
+			expect(JSON.parse(lines[0] as string).decision).toBe("allow");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--provider filters by provider",
+		async () => {
+			await writeEntries(
+				makeEntry({ decision: "allow", provider: "chained-commands" }),
+				makeEntry({ decision: "allow", provider: "llm" }),
+			);
+			const { stdout, exitCode } = await runLog("--json", "--provider", "llm");
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(1);
+			expect(JSON.parse(lines[0] as string).provider).toBe("llm");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--cwd filters by path prefix",
+		async () => {
+			await writeEntries(
+				makeEntry({ cwd: "/home/user/project-a" }),
+				makeEntry({ cwd: "/home/user/project-b" }),
+			);
+			const { stdout, exitCode } = await runLog(
+				"--json",
+				"--cwd",
+				"/home/user/project-a",
+			);
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(1);
+			expect(JSON.parse(lines[0] as string).cwd).toBe("/home/user/project-a");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--since filters by timestamp",
+		async () => {
+			await writeEntries(
+				makeEntry({ timestamp: "2026-02-13T12:00:00.000Z" }),
+				makeEntry({ timestamp: "2026-02-15T12:00:00.000Z" }),
+			);
+			const { stdout, exitCode } = await runLog(
+				"--json",
+				"--since",
+				"2026-02-14T00:00:00Z",
+			);
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(1);
+			expect(JSON.parse(lines[0] as string).timestamp).toBe(
+				"2026-02-15T12:00:00.000Z",
+			);
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--until filters by timestamp",
+		async () => {
+			await writeEntries(
+				makeEntry({ timestamp: "2026-02-13T12:00:00.000Z" }),
+				makeEntry({ timestamp: "2026-02-15T12:00:00.000Z" }),
+			);
+			const { stdout, exitCode } = await runLog(
+				"--json",
+				"--until",
+				"2026-02-14T00:00:00Z",
+			);
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(1);
+			expect(JSON.parse(lines[0] as string).timestamp).toBe(
+				"2026-02-13T12:00:00.000Z",
+			);
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"filters are applied before --last",
+		async () => {
+			await writeEntries(
+				makeEntry({ decision: "allow", provider: "p1" }),
+				makeEntry({ decision: "abstain" }),
+				makeEntry({ decision: "allow", provider: "p2" }),
+				makeEntry({ decision: "abstain" }),
+				makeEntry({ decision: "allow", provider: "p3" }),
+			);
+			const { stdout, exitCode } = await runLog(
+				"--json",
+				"--decision",
+				"allow",
+				"--last",
+				"2",
+			);
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(2);
+			expect(JSON.parse(lines[0] as string).provider).toBe("p2");
+			expect(JSON.parse(lines[1] as string).provider).toBe("p3");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"multiple filters are ANDed",
+		async () => {
+			await writeEntries(
+				makeEntry({ decision: "allow", cwd: "/project-a", provider: "p1" }),
+				makeEntry({ decision: "deny", cwd: "/project-a", provider: "p2" }),
+				makeEntry({ decision: "allow", cwd: "/project-b", provider: "p3" }),
+			);
+			const { stdout, exitCode } = await runLog(
+				"--json",
+				"--decision",
+				"allow",
+				"--cwd",
+				"/project-a",
+			);
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(1);
+			expect(JSON.parse(lines[0] as string).provider).toBe("p1");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"invalid --since value errors",
+		async () => {
+			const { stderr, exitCode } = await runLog("--since", "not-a-date");
+			expect(exitCode).toBe(1);
+			expect(stderr).toContain("Invalid --since");
+		},
+		{ timeout: 10_000 },
+	);
 });
