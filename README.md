@@ -70,7 +70,11 @@ tyr uninstall [--global] [--dry-run]
 tyr config show
 tyr config set <key> <value>
 tyr config path
-tyr log [--last N] [--json] [--since T] [--until T] [--decision D] [--provider P] [--cwd C]
+tyr config env set <key> <value>
+tyr config env show
+tyr log [--last N] [--json] [--since T] [--until T] [--decision D] [--provider P] [--cwd C] [--verbose]
+tyr log clear
+tyr db migrate
 tyr stats [--since T] [--json]
 tyr suggest [--apply] [--global|--project] [--min-count N] [--json]
 tyr debug claude-config
@@ -90,8 +94,54 @@ Tyr reads its own config from `~/.config/tyr/config.json` (overridable via `TYR_
 | `llm.timeout` | number | `10` | LLM request timeout in seconds |
 | `llm.canDeny` | boolean | `false` | Whether the LLM provider can deny requests |
 | `verboseLog` | boolean | `false` | Include LLM prompt and parameters in log entries |
+| `logRetention` | string | `"30d"` | Auto-prune log entries older than this (`"0"` to disable) |
 
 All config values can be overridden per-invocation via CLI flags (e.g. `--fail-open`, `--llm-model`). The config file supports JSON with comments (JSONC).
+
+### Providers
+
+Tyr uses a **pipeline architecture** where providers are evaluated in sequence. The first provider to return a definitive `allow` or `deny` wins — remaining providers are skipped. If all providers `abstain`, the request falls through to Claude Code's default behavior (prompting the user), unless `failOpen: true` is set.
+
+Configure the pipeline via the `providers` array. **Order matters** — providers run left to right.
+
+#### `cache`
+
+Caches prior decisions in SQLite. If the same command was previously allowed or denied (with the same config and permission rules), returns the cached result immediately. The cache auto-invalidates when your config or Claude Code permission rules change.
+
+**Best practice:** Place first in the pipeline to skip expensive downstream evaluations.
+
+#### `chained-commands`
+
+Parses compound shell commands (`&&`, `||`, `|`, `;`, subshells, command substitution) and checks each sub-command against Claude Code's allow/deny permission patterns from `.claude/settings.json`.
+
+- **Allow:** All sub-commands match an allow pattern
+- **Deny:** Any sub-command matches a deny pattern
+- **Abstain:** Any sub-command has no matching pattern
+
+Only evaluates `Bash` tool requests; abstains on all other tools.
+
+#### `llm`
+
+Sends ambiguous commands to an LLM for evaluation. The LLM sees your permission rules, the command, and the working directory, then reasons about whether the command is safe.
+
+When `llm.canDeny` is `false` (the default), the LLM can only approve commands — deny decisions are converted to abstain, forcing the user to decide. Set `canDeny: true` for stricter enforcement.
+
+Requires either a local Claude CLI (`llm.provider: "claude"`) or an OpenRouter API key (`llm.provider: "openrouter"` + `OPENROUTER_API_KEY` env var).
+
+Only evaluates `Bash` tool requests; abstains on all other tools. Timeouts and errors are treated as abstain.
+
+#### Pipeline examples
+
+```jsonc
+// Safe & fast (default) — pattern matching only
+{ "providers": ["chained-commands"] }
+
+// With caching — faster repeated evaluations
+{ "providers": ["cache", "chained-commands"] }
+
+// Full pipeline — patterns first, then LLM for ambiguous commands
+{ "providers": ["cache", "chained-commands", "llm"] }
+```
 
 ## Development
 
