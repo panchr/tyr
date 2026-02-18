@@ -1,18 +1,22 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { appendFile, mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { LogEntry } from "../log.ts";
+import { resetDbInstance } from "../db.ts";
+import { appendLogEntry, type LogEntry } from "../log.ts";
+import { saveEnv } from "./helpers/index.ts";
 
 let tempDir: string;
-let logFile: string;
+let dbPath: string;
+const restoreDbEnv = saveEnv("TYR_DB_PATH");
 
 function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
 	return {
-		timestamp: "2026-02-14T12:00:00.000Z",
+		timestamp: new Date("2026-02-14T12:00:00.000Z").getTime(),
 		cwd: "/test/dir",
 		tool_name: "Bash",
-		tool_input: { command: "echo hello" },
+		tool_input: "echo hello",
+		input: '{"command":"echo hello"}',
 		decision: "abstain",
 		provider: null,
 		duration_ms: 5,
@@ -21,9 +25,10 @@ function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
 	};
 }
 
-async function writeEntries(...entries: LogEntry[]): Promise<void> {
-	const lines = `${entries.map((e) => JSON.stringify(e)).join("\n")}\n`;
-	await appendFile(logFile, lines, "utf-8");
+function writeEntries(...entries: LogEntry[]): void {
+	for (const e of entries) {
+		appendLogEntry(e);
+	}
 }
 
 async function runLog(
@@ -33,7 +38,7 @@ async function runLog(
 		cwd: `${import.meta.dir}/../..`,
 		stdout: "pipe",
 		stderr: "pipe",
-		env: { ...process.env, TYR_LOG_FILE: logFile },
+		env: { ...process.env, TYR_DB_PATH: dbPath },
 	});
 	const [stdout, stderr] = await Promise.all([
 		new Response(proc.stdout).text(),
@@ -45,10 +50,13 @@ async function runLog(
 
 beforeEach(async () => {
 	tempDir = await mkdtemp(join(tmpdir(), "tyr-log-cmd-"));
-	logFile = join(tempDir, "log.jsonl");
+	dbPath = join(tempDir, "tyr.db");
+	process.env.TYR_DB_PATH = dbPath;
 });
 
 afterEach(async () => {
+	resetDbInstance();
+	restoreDbEnv();
 	await rm(tempDir, { recursive: true, force: true });
 });
 
@@ -66,7 +74,7 @@ describe("tyr log", () => {
 	test(
 		"displays entries with header",
 		async () => {
-			await writeEntries(makeEntry(), makeEntry({ tool_name: "Read" }));
+			writeEntries(makeEntry(), makeEntry({ tool_name: "Read" }));
 			const { stdout, exitCode } = await runLog();
 			expect(exitCode).toBe(0);
 			expect(stdout).toContain("TIME");
@@ -82,7 +90,7 @@ describe("tyr log", () => {
 	test(
 		"displays cwd in output",
 		async () => {
-			await writeEntries(makeEntry({ cwd: "/my/project" }));
+			writeEntries(makeEntry({ cwd: "/my/project" }));
 			const { stdout } = await runLog();
 			expect(stdout).toContain("/my/project");
 		},
@@ -92,10 +100,10 @@ describe("tyr log", () => {
 	test(
 		"--last limits output",
 		async () => {
-			await writeEntries(
-				makeEntry({ tool_input: { command: "cmd-one" } }),
-				makeEntry({ tool_input: { command: "cmd-two" } }),
-				makeEntry({ tool_input: { command: "cmd-three" } }),
+			writeEntries(
+				makeEntry({ tool_input: "cmd-one" }),
+				makeEntry({ tool_input: "cmd-two" }),
+				makeEntry({ tool_input: "cmd-three" }),
 			);
 			const { stdout, exitCode } = await runLog("--last", "1");
 			expect(exitCode).toBe(0);
@@ -108,7 +116,7 @@ describe("tyr log", () => {
 	test(
 		"--json outputs valid JSONL",
 		async () => {
-			await writeEntries(
+			writeEntries(
 				makeEntry({ session_id: "j1" }),
 				makeEntry({ session_id: "j2" }),
 			);
@@ -127,7 +135,7 @@ describe("tyr log", () => {
 	test(
 		"--json --last combines correctly",
 		async () => {
-			await writeEntries(
+			writeEntries(
 				makeEntry({ session_id: "a" }),
 				makeEntry({ session_id: "b" }),
 				makeEntry({ session_id: "c" }),
@@ -144,21 +152,9 @@ describe("tyr log", () => {
 	test(
 		"shows command from tool_input",
 		async () => {
-			await writeEntries(makeEntry({ tool_input: { command: "bun test" } }));
+			writeEntries(makeEntry({ tool_input: "bun test" }));
 			const { stdout } = await runLog();
 			expect(stdout).toContain("bun test");
-		},
-		{ timeout: 10_000 },
-	);
-
-	test(
-		"shows file_path when no command",
-		async () => {
-			await writeEntries(
-				makeEntry({ tool_input: { file_path: "/etc/hosts" } }),
-			);
-			const { stdout } = await runLog();
-			expect(stdout).toContain("/etc/hosts");
 		},
 		{ timeout: 10_000 },
 	);
@@ -176,7 +172,7 @@ describe("tyr log", () => {
 	test(
 		"--decision filters by decision",
 		async () => {
-			await writeEntries(
+			writeEntries(
 				makeEntry({ decision: "allow", provider: "chained-commands" }),
 				makeEntry({ decision: "deny", provider: "llm" }),
 				makeEntry({ decision: "abstain" }),
@@ -197,7 +193,7 @@ describe("tyr log", () => {
 	test(
 		"--provider filters by provider",
 		async () => {
-			await writeEntries(
+			writeEntries(
 				makeEntry({ decision: "allow", provider: "chained-commands" }),
 				makeEntry({ decision: "allow", provider: "llm" }),
 			);
@@ -213,7 +209,7 @@ describe("tyr log", () => {
 	test(
 		"--cwd filters by path prefix",
 		async () => {
-			await writeEntries(
+			writeEntries(
 				makeEntry({ cwd: "/home/user/project-a" }),
 				makeEntry({ cwd: "/home/user/project-b" }),
 			);
@@ -233,9 +229,13 @@ describe("tyr log", () => {
 	test(
 		"--since filters by timestamp",
 		async () => {
-			await writeEntries(
-				makeEntry({ timestamp: "2026-02-13T12:00:00.000Z" }),
-				makeEntry({ timestamp: "2026-02-15T12:00:00.000Z" }),
+			writeEntries(
+				makeEntry({
+					timestamp: new Date("2026-02-13T12:00:00.000Z").getTime(),
+				}),
+				makeEntry({
+					timestamp: new Date("2026-02-15T12:00:00.000Z").getTime(),
+				}),
 			);
 			const { stdout, exitCode } = await runLog(
 				"--json",
@@ -245,8 +245,9 @@ describe("tyr log", () => {
 			expect(exitCode).toBe(0);
 			const lines = stdout.trim().split("\n");
 			expect(lines).toHaveLength(1);
-			expect(JSON.parse(lines[0] as string).timestamp).toBe(
-				"2026-02-15T12:00:00.000Z",
+			const row = JSON.parse(lines[0] as string);
+			expect(row.timestamp).toBe(
+				new Date("2026-02-15T12:00:00.000Z").getTime(),
 			);
 		},
 		{ timeout: 10_000 },
@@ -255,9 +256,13 @@ describe("tyr log", () => {
 	test(
 		"--until filters by timestamp",
 		async () => {
-			await writeEntries(
-				makeEntry({ timestamp: "2026-02-13T12:00:00.000Z" }),
-				makeEntry({ timestamp: "2026-02-15T12:00:00.000Z" }),
+			writeEntries(
+				makeEntry({
+					timestamp: new Date("2026-02-13T12:00:00.000Z").getTime(),
+				}),
+				makeEntry({
+					timestamp: new Date("2026-02-15T12:00:00.000Z").getTime(),
+				}),
 			);
 			const { stdout, exitCode } = await runLog(
 				"--json",
@@ -267,8 +272,9 @@ describe("tyr log", () => {
 			expect(exitCode).toBe(0);
 			const lines = stdout.trim().split("\n");
 			expect(lines).toHaveLength(1);
-			expect(JSON.parse(lines[0] as string).timestamp).toBe(
-				"2026-02-13T12:00:00.000Z",
+			const row = JSON.parse(lines[0] as string);
+			expect(row.timestamp).toBe(
+				new Date("2026-02-13T12:00:00.000Z").getTime(),
 			);
 		},
 		{ timeout: 10_000 },
@@ -277,7 +283,7 @@ describe("tyr log", () => {
 	test(
 		"filters are applied before --last",
 		async () => {
-			await writeEntries(
+			writeEntries(
 				makeEntry({ decision: "allow", provider: "p1" }),
 				makeEntry({ decision: "abstain" }),
 				makeEntry({ decision: "allow", provider: "p2" }),
@@ -303,7 +309,7 @@ describe("tyr log", () => {
 	test(
 		"multiple filters are ANDed",
 		async () => {
-			await writeEntries(
+			writeEntries(
 				makeEntry({ decision: "allow", cwd: "/project-a", provider: "p1" }),
 				makeEntry({ decision: "deny", cwd: "/project-a", provider: "p2" }),
 				makeEntry({ decision: "allow", cwd: "/project-b", provider: "p3" }),

@@ -1,16 +1,24 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { appendFile, mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { appendLogEntry, type LogEntry, readLogEntries } from "../log.ts";
+import { getDb, resetDbInstance } from "../db.ts";
+import {
+	appendLogEntry,
+	type LogEntry,
+	type LogRow,
+	migrateJsonlToSqlite,
+	readLogEntries,
+} from "../log.ts";
 import { saveEnv } from "./helpers/index.ts";
 
 function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
 	return {
-		timestamp: "2026-02-14T12:00:00.000Z",
+		timestamp: Date.now(),
 		cwd: "/test/dir",
 		tool_name: "Bash",
-		tool_input: { command: "echo hello" },
+		tool_input: "echo hello",
+		input: '{"command":"echo hello"}',
 		decision: "abstain",
 		provider: null,
 		duration_ms: 5,
@@ -20,100 +28,216 @@ function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
 }
 
 let tempDir: string;
-let logFile: string;
-const restoreEnv = saveEnv("TYR_LOG_FILE");
+const restoreDbEnv = saveEnv("TYR_DB_PATH");
+const restoreLogEnv = saveEnv("TYR_LOG_FILE");
 
 afterEach(async () => {
-	restoreEnv();
+	resetDbInstance();
+	restoreDbEnv();
+	restoreLogEnv();
 	if (tempDir) {
 		await rm(tempDir, { recursive: true, force: true });
+		tempDir = "";
 	}
 });
 
-async function setupTempLog(): Promise<void> {
+async function setupTempDb(): Promise<string> {
 	tempDir = await mkdtemp(join(tmpdir(), "tyr-log-test-"));
-	logFile = join(tempDir, "log.jsonl");
-	process.env.TYR_LOG_FILE = logFile;
+	const dbPath = join(tempDir, "tyr.db");
+	process.env.TYR_DB_PATH = dbPath;
+	// Point legacy log path to same temp dir (for migration tests)
+	process.env.TYR_LOG_FILE = join(tempDir, "log.jsonl");
+	return tempDir;
 }
 
-describe("log", () => {
-	test("creates log file on first write", async () => {
-		await setupTempLog();
-		await appendLogEntry(makeEntry());
-		const file = Bun.file(logFile);
-		expect(await file.exists()).toBe(true);
+describe("log (SQLite)", () => {
+	test("appendLogEntry inserts a row", async () => {
+		await setupTempDb();
+		appendLogEntry(makeEntry());
+		const entries = readLogEntries();
+		expect(entries).toHaveLength(1);
+		expect(entries[0]?.tool_name).toBe("Bash");
+		expect(entries[0]?.decision).toBe("abstain");
 	});
 
-	test("writes valid JSONL", async () => {
-		await setupTempLog();
-		await appendLogEntry(makeEntry());
-		const text = await Bun.file(logFile).text();
-		const parsed = JSON.parse(text.trim());
-		expect(parsed.tool_name).toBe("Bash");
-		expect(parsed.decision).toBe("abstain");
+	test("readLogEntries returns empty for new DB", async () => {
+		await setupTempDb();
+		const entries = readLogEntries();
+		expect(entries).toEqual([]);
 	});
 
-	test("appends multiple entries", async () => {
-		await setupTempLog();
-		await appendLogEntry(makeEntry({ session_id: "s1" }));
-		await appendLogEntry(makeEntry({ session_id: "s2" }));
-		await appendLogEntry(makeEntry({ session_id: "s3" }));
+	test("multiple entries preserve order", async () => {
+		await setupTempDb();
+		appendLogEntry(makeEntry({ session_id: "s1" }));
+		appendLogEntry(makeEntry({ session_id: "s2" }));
+		appendLogEntry(makeEntry({ session_id: "s3" }));
 
-		const entries = await readLogEntries();
+		const entries = readLogEntries();
 		expect(entries).toHaveLength(3);
 		expect(entries[0]?.session_id).toBe("s1");
 		expect(entries[2]?.session_id).toBe("s3");
 	});
 
-	test("readLogEntries with last param", async () => {
-		await setupTempLog();
-		await appendLogEntry(makeEntry({ session_id: "s1" }));
-		await appendLogEntry(makeEntry({ session_id: "s2" }));
-		await appendLogEntry(makeEntry({ session_id: "s3" }));
+	test("readLogEntries with last option", async () => {
+		await setupTempDb();
+		appendLogEntry(makeEntry({ session_id: "s1" }));
+		appendLogEntry(makeEntry({ session_id: "s2" }));
+		appendLogEntry(makeEntry({ session_id: "s3" }));
 
-		const last2 = await readLogEntries(2);
+		const last2 = readLogEntries({ last: 2 });
 		expect(last2).toHaveLength(2);
 		expect(last2[0]?.session_id).toBe("s2");
 		expect(last2[1]?.session_id).toBe("s3");
 	});
 
-	test("readLogEntries returns empty for missing file", async () => {
-		await setupTempLog();
-		const entries = await readLogEntries();
-		expect(entries).toEqual([]);
+	test("appendLogEntry with LLM log data", async () => {
+		await setupTempDb();
+		appendLogEntry(makeEntry({ session_id: "llm-test" }), {
+			prompt: "Is this safe?",
+			model: "haiku",
+		});
+
+		const entries = readLogEntries();
+		expect(entries).toHaveLength(1);
+
+		const db = getDb();
+		const llmRow = db
+			.query("SELECT * FROM llm_logs WHERE log_id = ?")
+			.get(entries[0]?.id) as { prompt: string; model: string } | null;
+		expect(llmRow).not.toBeNull();
+		expect(llmRow?.prompt).toBe("Is this safe?");
+		expect(llmRow?.model).toBe("haiku");
 	});
 
-	test("readLogEntries skips malformed JSON lines", async () => {
-		await setupTempLog();
-		await appendLogEntry(makeEntry({ session_id: "valid1" }));
-		await appendFile(logFile, "not valid json{{{corrupt\n", "utf-8");
-		await appendLogEntry(makeEntry({ session_id: "valid2" }));
-
-		const entries = await readLogEntries();
-		expect(entries).toHaveLength(2);
-		expect(entries[0]?.session_id).toBe("valid1");
-		expect(entries[1]?.session_id).toBe("valid2");
-	});
-
-	test("log entry schema has all required fields", async () => {
-		await setupTempLog();
+	test("log entry round-trips all fields", async () => {
+		await setupTempDb();
 		const entry = makeEntry({
 			decision: "allow",
 			provider: "chained-commands",
 			duration_ms: 42,
+			reason: "matched pattern",
+			mode: "shadow",
 		});
-		await appendLogEntry(entry);
+		appendLogEntry(entry);
 
-		const entries = await readLogEntries();
+		const entries = readLogEntries();
 		expect(entries).toHaveLength(1);
-		const e = entries[0] as LogEntry;
-		expect(e.timestamp).toBeString();
-		expect(e.tool_name).toBeString();
-		expect(e.tool_input).toBeObject();
-		expect(["allow", "deny", "abstain", "error"]).toContain(e.decision);
+		const e = entries[0] as LogRow;
+		expect(e.timestamp).toBeNumber();
+		expect(e.tool_name).toBe("Bash");
+		expect(e.tool_input).toBe("echo hello");
+		expect(e.input).toBe('{"command":"echo hello"}');
+		expect(e.decision).toBe("allow");
 		expect(e.provider).toBe("chained-commands");
-		expect(e.duration_ms).toBeNumber();
-		expect(e.session_id).toBeString();
+		expect(e.duration_ms).toBe(42);
+		expect(e.reason).toBe("matched pattern");
+		expect(e.mode).toBe("shadow");
+		expect(e.session_id).toBe("test-session");
+	});
+
+	test("filter by decision", async () => {
+		await setupTempDb();
+		appendLogEntry(makeEntry({ decision: "allow" }));
+		appendLogEntry(makeEntry({ decision: "deny" }));
+		appendLogEntry(makeEntry({ decision: "abstain" }));
+
+		const entries = readLogEntries({ decision: "allow" });
+		expect(entries).toHaveLength(1);
+		expect(entries[0]?.decision).toBe("allow");
+	});
+
+	test("filter by since", async () => {
+		await setupTempDb();
+		const now = Date.now();
+		appendLogEntry(makeEntry({ timestamp: now - 10000 }));
+		appendLogEntry(makeEntry({ timestamp: now }));
+
+		const entries = readLogEntries({ since: now - 5000 });
+		expect(entries).toHaveLength(1);
+	});
+});
+
+// -- Legacy JSONL entries for integration tests --
+
+function makeLegacyJsonlEntry(overrides: Record<string, unknown> = {}): string {
+	return JSON.stringify({
+		timestamp: "2026-02-14T12:00:00.000Z",
+		cwd: "/test/dir",
+		tool_name: "Bash",
+		tool_input: { command: "echo hello" },
+		decision: "abstain",
+		provider: null,
+		duration_ms: 5,
+		session_id: "test-session",
+		...overrides,
+	});
+}
+
+describe("JSONL migration", () => {
+	test("imports valid entries and deletes file", async () => {
+		const dir = await setupTempDb();
+		const logFile = join(dir, "log.jsonl");
+		await writeFile(
+			logFile,
+			`${makeLegacyJsonlEntry({ session_id: "m1" })}\n${makeLegacyJsonlEntry({ session_id: "m2" })}\n`,
+		);
+
+		migrateJsonlToSqlite();
+
+		const entries = readLogEntries();
+		expect(entries).toHaveLength(2);
+		expect(entries[0]?.session_id).toBe("m1");
+		expect(entries[1]?.session_id).toBe("m2");
+		expect(entries[0]?.tool_input).toBe("echo hello");
+		expect(entries[0]?.input).toBe('{"command":"echo hello"}');
+
+		// File should be deleted
+		const file = Bun.file(logFile);
+		expect(await file.exists()).toBe(false);
+	});
+
+	test("skips malformed lines", async () => {
+		const dir = await setupTempDb();
+		const logFile = join(dir, "log.jsonl");
+		await writeFile(
+			logFile,
+			`${makeLegacyJsonlEntry({ session_id: "valid" })}\nnot-json{{{corrupt\n`,
+		);
+
+		migrateJsonlToSqlite();
+
+		const entries = readLogEntries();
+		expect(entries).toHaveLength(1);
+		expect(entries[0]?.session_id).toBe("valid");
+	});
+
+	test("no-op if file doesn't exist", async () => {
+		await setupTempDb();
+		migrateJsonlToSqlite(); // should not throw
+		const entries = readLogEntries();
+		expect(entries).toEqual([]);
+	});
+
+	test("migrates LLM fields into llm_logs table", async () => {
+		const dir = await setupTempDb();
+		const logFile = join(dir, "log.jsonl");
+		await writeFile(
+			logFile,
+			`${makeLegacyJsonlEntry({ llm_prompt: "Is this safe?", llm_model: "haiku" })}\n`,
+		);
+
+		migrateJsonlToSqlite();
+
+		const entries = readLogEntries();
+		expect(entries).toHaveLength(1);
+
+		const db = getDb();
+		const llmRow = db
+			.query("SELECT * FROM llm_logs WHERE log_id = ?")
+			.get(entries[0]?.id) as { prompt: string; model: string } | null;
+		expect(llmRow).not.toBeNull();
+		expect(llmRow?.prompt).toBe("Is this safe?");
+		expect(llmRow?.model).toBe("haiku");
 	});
 });
 
@@ -131,17 +255,18 @@ describe("tyr judge logging (integration)", () => {
 	test(
 		"judge writes a log entry on valid request",
 		async () => {
-			await setupTempLog();
+			const dir = await setupTempDb();
+			const dbPath = join(dir, "tyr.db");
 			const proc = Bun.spawn(["bun", "run", "src/index.ts", "judge"], {
 				cwd: `${import.meta.dir}/../..`,
 				stdout: "pipe",
 				stderr: "pipe",
 				stdin: new Response(JSON.stringify(VALID_REQUEST)).body,
-				env: { ...process.env, TYR_LOG_FILE: logFile },
+				env: { ...process.env, TYR_DB_PATH: dbPath },
 			});
 			await proc.exited;
 
-			const entries = await readLogEntries();
+			const entries = readLogEntries();
 			expect(entries).toHaveLength(1);
 			expect(entries[0]?.tool_name).toBe("Bash");
 			expect(entries[0]?.decision).toBe("abstain");
@@ -154,7 +279,8 @@ describe("tyr judge logging (integration)", () => {
 	test(
 		"shadow mode sets mode field in log entry",
 		async () => {
-			await setupTempLog();
+			const dir = await setupTempDb();
+			const dbPath = join(dir, "tyr.db");
 			const proc = Bun.spawn(
 				["bun", "run", "src/index.ts", "judge", "--shadow"],
 				{
@@ -162,12 +288,12 @@ describe("tyr judge logging (integration)", () => {
 					stdout: "pipe",
 					stderr: "pipe",
 					stdin: new Response(JSON.stringify(VALID_REQUEST)).body,
-					env: { ...process.env, TYR_LOG_FILE: logFile },
+					env: { ...process.env, TYR_DB_PATH: dbPath },
 				},
 			);
 			await proc.exited;
 
-			const entries = await readLogEntries();
+			const entries = readLogEntries();
 			expect(entries).toHaveLength(1);
 			expect(entries[0]?.mode).toBe("shadow");
 			expect(entries[0]?.decision).toBe("abstain");
@@ -178,7 +304,8 @@ describe("tyr judge logging (integration)", () => {
 	test(
 		"audit mode logs request without running pipeline",
 		async () => {
-			await setupTempLog();
+			const dir = await setupTempDb();
+			const dbPath = join(dir, "tyr.db");
 			const proc = Bun.spawn(
 				["bun", "run", "src/index.ts", "judge", "--audit"],
 				{
@@ -186,12 +313,12 @@ describe("tyr judge logging (integration)", () => {
 					stdout: "pipe",
 					stderr: "pipe",
 					stdin: new Response(JSON.stringify(VALID_REQUEST)).body,
-					env: { ...process.env, TYR_LOG_FILE: logFile },
+					env: { ...process.env, TYR_DB_PATH: dbPath },
 				},
 			);
 			await proc.exited;
 
-			const entries = await readLogEntries();
+			const entries = readLogEntries();
 			expect(entries).toHaveLength(1);
 			expect(entries[0]?.mode).toBe("audit");
 			expect(entries[0]?.decision).toBe("abstain");
@@ -201,9 +328,10 @@ describe("tyr judge logging (integration)", () => {
 	);
 
 	test(
-		"--verbose-log includes LLM fields in log entry",
+		"--verbose-log includes LLM fields in llm_logs",
 		async () => {
-			await setupTempLog();
+			const dir = await setupTempDb();
+			const dbPath = join(dir, "tyr.db");
 			const proc = Bun.spawn(
 				["bun", "run", "src/index.ts", "judge", "--verbose-log"],
 				{
@@ -211,18 +339,21 @@ describe("tyr judge logging (integration)", () => {
 					stdout: "pipe",
 					stderr: "pipe",
 					stdin: new Response(JSON.stringify(VALID_REQUEST)).body,
-					env: { ...process.env, TYR_LOG_FILE: logFile },
+					env: { ...process.env, TYR_DB_PATH: dbPath },
 				},
 			);
 			expect(await proc.exited).toBe(0);
 
-			const entries = await readLogEntries();
+			const entries = readLogEntries();
 			expect(entries).toHaveLength(1);
-			expect(entries[0]?.llm_prompt).toBeDefined();
-			expect(entries[0]?.llm_prompt).toContain("permission checker");
-			expect(entries[0]?.llm_model).toBe("haiku");
-			expect(entries[0]?.llm_timeout).toBe(10);
-			expect(entries[0]?.llm_endpoint).toBeDefined();
+
+			const db = getDb();
+			const llmRow = db
+				.query("SELECT * FROM llm_logs WHERE log_id = ?")
+				.get(entries[0]?.id) as { prompt: string; model: string } | null;
+			expect(llmRow).not.toBeNull();
+			expect(llmRow?.prompt).toContain("permission checker");
+			expect(llmRow?.model).toBe("haiku");
 		},
 		{ timeout: 10_000 },
 	);

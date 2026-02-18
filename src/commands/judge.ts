@@ -2,8 +2,15 @@ import { defineCommand } from "citty";
 import { ClaudeAgent } from "../agents/claude.ts";
 import { rejectUnknownArgs } from "../args.ts";
 import { readConfig } from "../config.ts";
+import { closeDb } from "../db.ts";
 import { parsePermissionRequest, readStdin } from "../judge.ts";
-import { appendLogEntry, type LogEntry } from "../log.ts";
+import {
+	appendLogEntry,
+	extractToolInput,
+	type LlmLogEntry,
+	type LogEntry,
+	migrateJsonlToSqlite,
+} from "../log.ts";
 import { runPipeline } from "../pipeline.ts";
 import { buildPrompt } from "../prompts.ts";
 import { ChainedCommandsProvider } from "../providers/chained-commands.ts";
@@ -121,14 +128,23 @@ export default defineCommand({
 			);
 		}
 
+		// Migrate legacy JSONL logs on first run
+		try {
+			migrateJsonlToSqlite(verbose);
+		} catch (err) {
+			if (verbose) console.error("[tyr] JSONL migration failed:", err);
+		}
+
 		// Audit mode: log the request and exit without running the pipeline
 		if (audit) {
 			const duration = performance.now() - startTime;
+			const toolInput = extractToolInput(req.tool_name, req.tool_input);
 			const entry: LogEntry = {
-				timestamp: new Date().toISOString(),
+				timestamp: Date.now(),
 				cwd: req.cwd,
 				tool_name: req.tool_name,
-				tool_input: req.tool_input,
+				tool_input: toolInput,
+				input: JSON.stringify(req.tool_input),
 				decision: "abstain",
 				provider: null,
 				duration_ms: Math.round(duration),
@@ -136,13 +152,14 @@ export default defineCommand({
 				mode: "audit",
 			};
 			try {
-				await appendLogEntry(entry);
+				appendLogEntry(entry);
 			} catch (err) {
 				if (verbose) console.error("[tyr] failed to write log:", err);
 			}
 			if (verbose) {
 				console.error("[tyr] audit mode: logged request, skipping pipeline");
 			}
+			closeDb();
 			process.exit(0);
 			return;
 		}
@@ -225,28 +242,30 @@ export default defineCommand({
 
 		// Log the decision
 		const duration = performance.now() - startTime;
+		const toolInput = extractToolInput(req.tool_name, req.tool_input);
 		const entry: LogEntry = {
-			timestamp: new Date().toISOString(),
+			timestamp: Date.now(),
 			cwd: req.cwd,
 			tool_name: req.tool_name,
-			tool_input: req.tool_input,
+			tool_input: toolInput,
+			input: JSON.stringify(req.tool_input),
 			decision: result.decision,
-			provider: result.provider,
+			provider: result.provider ?? null,
+			reason: result.reason,
 			duration_ms: Math.round(duration),
 			session_id: req.session_id,
 			mode: shadow ? "shadow" : undefined,
-			...(config.verboseLog
-				? {
-						llm_prompt: buildPrompt(req, agent, config.llmCanDeny),
-						llm_model: config.llmModel,
-						llm_timeout: config.llmTimeout,
-						llm_endpoint: config.llmEndpoint,
-					}
-				: {}),
 		};
 
+		const llm: LlmLogEntry | undefined = config.verboseLog
+			? {
+					prompt: buildPrompt(req, agent, config.llmCanDeny),
+					model: config.llmModel,
+				}
+			: undefined;
+
 		try {
-			await appendLogEntry(entry);
+			appendLogEntry(entry, llm);
 		} catch (err) {
 			if (verbose) console.error("[tyr] failed to write log:", err);
 		}
@@ -259,6 +278,7 @@ export default defineCommand({
 				);
 			}
 			agent.close();
+			closeDb();
 			process.exit(0);
 			return;
 		}
@@ -281,6 +301,7 @@ export default defineCommand({
 		}
 
 		agent.close();
+		closeDb();
 		process.exit(0);
 	},
 });

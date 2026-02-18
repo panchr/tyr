@@ -86,7 +86,7 @@ describe.concurrent("cli routing", () => {
 		async () => {
 			const { stdout, exitCode } = await runCli("log", ["--help"]);
 			expect(stdout).toContain("--json");
-			expect(stdout).toContain("--follow");
+			expect(stdout).toContain("--since");
 			expect(exitCode).toBe(0);
 		},
 		{ timeout: 10_000 },
