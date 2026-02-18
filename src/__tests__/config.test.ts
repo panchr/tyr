@@ -14,7 +14,7 @@ import {
 	writeConfig,
 	writeEnvVar,
 } from "../config.ts";
-import { DEFAULT_TYR_CONFIG } from "../types.ts";
+import { DEFAULT_TYR_CONFIG, type TyrConfig } from "../types.ts";
 import { saveEnv } from "./helpers/index.ts";
 
 describe("getConfigPath", () => {
@@ -33,10 +33,7 @@ describe("getConfigPath", () => {
 describe.concurrent("isValidKey", () => {
 	test("accepts valid keys", () => {
 		expect(isValidKey("providers")).toBe(true);
-		expect(isValidKey("allowChainedCommands")).toBe(true);
 		expect(isValidKey("failOpen")).toBe(true);
-		expect(isValidKey("allowPromptChecks")).toBe(true);
-		expect(isValidKey("cacheChecks")).toBe(true);
 		expect(isValidKey("llm.provider")).toBe(true);
 		expect(isValidKey("llm.model")).toBe(true);
 		expect(isValidKey("llm.endpoint")).toBe(true);
@@ -177,21 +174,23 @@ describe("readConfig", () => {
 		await Bun.write(path, JSON.stringify({ failOpen: true }));
 		const config = await readConfig();
 		expect(config.failOpen).toBe(true);
-		expect(config.allowChainedCommands).toBe(
-			DEFAULT_TYR_CONFIG.allowChainedCommands,
-		);
+		expect(config.providers).toEqual(DEFAULT_TYR_CONFIG.providers);
 	});
 
 	test("reads JSONC config with comments", async () => {
 		const path = getConfigPath();
 		await Bun.write(
 			path,
-			'{\n  // Enable fail-open for safety\n  "failOpen": true,\n  /* LLM config */\n  "llmTimeout": 30\n}\n',
+			'{\n  // Enable fail-open for safety\n  "failOpen": true\n}\n',
 		);
 		const config = await readConfig();
 		expect(config.failOpen).toBe(true);
-		// Legacy flat key migrated to nested llm object
-		expect(config.llm.timeout).toBe(30);
+	});
+
+	test("rejects unknown keys", async () => {
+		const path = getConfigPath();
+		await Bun.write(path, JSON.stringify({ llmTimeout: 30 }));
+		await expect(readConfig()).rejects.toThrow();
 	});
 });
 
@@ -218,7 +217,10 @@ describe("writeConfig", () => {
 	});
 
 	test("round-trips with readConfig", async () => {
-		const config = { ...DEFAULT_TYR_CONFIG, cacheChecks: true };
+		const config: TyrConfig = {
+			...DEFAULT_TYR_CONFIG,
+			providers: ["cache", "chained-commands"],
+		};
 		await writeConfig(config);
 		const read = await readConfig();
 		expect(read).toEqual(config);

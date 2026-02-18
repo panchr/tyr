@@ -104,9 +104,7 @@ describe.concurrent("Provider", () => {
 describe.concurrent("TyrConfig", () => {
 	test("DEFAULT_TYR_CONFIG has expected defaults", () => {
 		expect(DEFAULT_TYR_CONFIG).toEqual({
-			allowChainedCommands: true,
-			allowPromptChecks: false,
-			cacheChecks: false,
+			providers: ["chained-commands"],
 			failOpen: false,
 			llm: {
 				provider: "claude",
@@ -125,12 +123,12 @@ describe.concurrent("TyrConfig", () => {
 			failOpen: true,
 		};
 		expect(custom.failOpen).toBe(true);
-		expect(custom.allowChainedCommands).toBe(true);
+		expect(custom.providers).toEqual(["chained-commands"]);
 	});
 });
 
 describe.concurrent("resolveProviders", () => {
-	test("uses explicit providers array when set", () => {
+	test("returns providers from config", () => {
 		const config: TyrConfig = {
 			...DEFAULT_TYR_CONFIG,
 			providers: ["llm", "chained-commands"],
@@ -138,40 +136,15 @@ describe.concurrent("resolveProviders", () => {
 		expect(resolveProviders(config)).toEqual(["llm", "chained-commands"]);
 	});
 
-	test("derives from boolean flags when providers is undefined", () => {
+	test("returns default providers", () => {
 		expect(resolveProviders(DEFAULT_TYR_CONFIG)).toEqual(["chained-commands"]);
 	});
 
-	test("includes all providers when all flags are true", () => {
+	test("returns empty array when providers is empty", () => {
 		const config: TyrConfig = {
 			...DEFAULT_TYR_CONFIG,
-			cacheChecks: true,
-			allowChainedCommands: true,
-			allowPromptChecks: true,
-		};
-		expect(resolveProviders(config)).toEqual([
-			"cache",
-			"chained-commands",
-			"llm",
-		]);
-	});
-
-	test("returns empty array when all flags are false", () => {
-		const config: TyrConfig = {
-			...DEFAULT_TYR_CONFIG,
-			allowChainedCommands: false,
+			providers: [],
 		};
 		expect(resolveProviders(config)).toEqual([]);
-	});
-
-	test("explicit providers ignores boolean flags", () => {
-		const config: TyrConfig = {
-			...DEFAULT_TYR_CONFIG,
-			providers: ["llm"],
-			allowChainedCommands: true,
-			allowPromptChecks: false,
-			cacheChecks: true,
-		};
-		expect(resolveProviders(config)).toEqual(["llm"]);
 	});
 });

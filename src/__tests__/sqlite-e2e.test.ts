@@ -60,7 +60,7 @@ describe("config change invalidates cache", () => {
 
 			// First run: cache miss, result logged with cached=0
 			const r1 = await runJudge(stdin, {
-				args: ["--cache-checks"],
+				args: ["--providers", "cache,chained-commands"],
 				env,
 			});
 			expect(r1.exitCode).toBe(0);
@@ -69,7 +69,7 @@ describe("config change invalidates cache", () => {
 
 			// Second run: cache hit, logged with cached=1
 			const r2 = await runJudge(stdin, {
-				args: ["--cache-checks"],
+				args: ["--providers", "cache,chained-commands"],
 				env,
 			});
 			expect(r2.exitCode).toBe(0);
@@ -84,7 +84,7 @@ describe("config change invalidates cache", () => {
 
 			// Third run: config changed → cache miss → logged with cached=0
 			const r3 = await runJudge(stdin, {
-				args: ["--cache-checks"],
+				args: ["--providers", "cache,chained-commands"],
 				env,
 			});
 			expect(r3.exitCode).toBe(0);

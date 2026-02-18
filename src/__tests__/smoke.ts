@@ -27,14 +27,12 @@ function smokeEnv(projectDir: string): Record<string, string> {
 	};
 }
 
-/** Env vars for LLM tests: enables allowPromptChecks via tyr config. */
+/** Env vars for LLM tests: enables LLM provider via tyr config. */
 async function llmEnv(projectDir: string): Promise<Record<string, string>> {
 	await writeFile(
 		join(projectDir, "tyr-config.json"),
 		JSON.stringify({
-			allowChainedCommands: true,
-			allowPromptChecks: true,
-			cacheChecks: false,
+			providers: ["chained-commands", "llm"],
 			failOpen: false,
 		}),
 	);

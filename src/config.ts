@@ -103,9 +103,6 @@ const VALID_KEY_TYPES: Record<
 	"boolean" | "string" | "number" | "providers"
 > = {
 	providers: "providers",
-	allowChainedCommands: "boolean",
-	allowPromptChecks: "boolean",
-	cacheChecks: "boolean",
 	failOpen: "boolean",
 	verboseLog: "boolean",
 	"llm.provider": "string",
@@ -154,47 +151,25 @@ export function stripJsonComments(text: string): string {
 	return result;
 }
 
-/** Migrate flat llm* keys to the nested llm object for backward compatibility. */
-function migrateFlatLlmKeys(raw: Record<string, unknown>): void {
-	const mapping: Record<string, string> = {
-		llmProvider: "provider",
-		llmModel: "model",
-		llmEndpoint: "endpoint",
-		llmTimeout: "timeout",
-		llmCanDeny: "canDeny",
-	};
-	const llm = (raw.llm ?? {}) as Record<string, unknown>;
-	let migrated = false;
-	for (const [flat, nested] of Object.entries(mapping)) {
-		if (flat in raw) {
-			if (!(nested in llm)) {
-				llm[nested] = raw[flat];
-			}
-			delete raw[flat];
-			migrated = true;
-		}
-	}
-	if (migrated) {
-		raw.llm = llm;
-	}
-}
-
-/** Read tyr's config, returning defaults for missing or invalid files.
- *  Supports JSONC (JSON with Comments). Unknown keys are stripped;
- *  invalid values fall back to defaults.
- *  Migrates legacy flat llm* keys to the nested llm object. */
+/** Read tyr's config. Returns defaults when the file is missing.
+ *  Supports JSONC (JSON with Comments). Rejects unrecognized keys. */
 export async function readConfig(): Promise<TyrConfig> {
 	const path = getConfigPath();
+	let text: string;
 	try {
-		const text = await readFile(path, "utf-8");
-		const raw = JSON.parse(stripJsonComments(text));
-		if (typeof raw === "object" && raw !== null) {
-			migrateFlatLlmKeys(raw as Record<string, unknown>);
+		text = await readFile(path, "utf-8");
+	} catch (err: unknown) {
+		if (
+			err instanceof Error &&
+			"code" in err &&
+			(err as NodeJS.ErrnoException).code === "ENOENT"
+		) {
+			return { ...DEFAULT_TYR_CONFIG };
 		}
-		return TyrConfigSchema.parse(raw);
-	} catch {
-		return { ...DEFAULT_TYR_CONFIG };
+		throw err;
 	}
+	const raw = JSON.parse(stripJsonComments(text));
+	return TyrConfigSchema.strict().parse(raw);
 }
 
 /** Write config to disk, creating parent directories as needed. */

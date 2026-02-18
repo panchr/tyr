@@ -16,7 +16,12 @@ const show = defineCommand({
 		description: "Display current configuration",
 	},
 	async run() {
-		const config = await readConfig();
+		const config = await readConfig().catch((err) => {
+			console.error(
+				`Invalid config: ${err instanceof Error ? err.message : err}`,
+			);
+			return process.exit(1) as never;
+		});
 		console.log(JSON.stringify(config, null, 2));
 	},
 });
@@ -48,7 +53,12 @@ const set = defineCommand({
 			return;
 		}
 
-		const config = await readConfig();
+		const config = await readConfig().catch((err) => {
+			console.error(
+				`Invalid config: ${err instanceof Error ? err.message : err}`,
+			);
+			return process.exit(1) as never;
+		});
 		const parts = key.split(".");
 		if (parts.length === 2) {
 			const [group, field] = parts;

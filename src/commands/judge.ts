@@ -35,18 +35,6 @@ const judgeArgs = {
 		description: "Skip the pipeline entirely; just log the request and abstain",
 	},
 	// Config overrides (kebab-case flags that override config file values)
-	"allow-chained-commands": {
-		type: "boolean" as const,
-		description: "Override allowChainedCommands config",
-	},
-	"allow-prompt-checks": {
-		type: "boolean" as const,
-		description: "Override allowPromptChecks config",
-	},
-	"cache-checks": {
-		type: "boolean" as const,
-		description: "Override cacheChecks config",
-	},
 	providers: {
 		type: "string" as const,
 		description:
@@ -168,13 +156,16 @@ export default defineCommand({
 		loadEnvFile();
 
 		// Build provider pipeline based on config, applying CLI overrides
-		const config = await readConfig();
-		if (args["allow-chained-commands"] !== undefined)
-			config.allowChainedCommands = args["allow-chained-commands"];
-		if (args["allow-prompt-checks"] !== undefined)
-			config.allowPromptChecks = args["allow-prompt-checks"];
-		if (args["cache-checks"] !== undefined)
-			config.cacheChecks = args["cache-checks"];
+		let config: TyrConfig;
+		try {
+			config = await readConfig();
+		} catch (err) {
+			console.error(
+				`[tyr] invalid config: ${err instanceof Error ? err.message : err}`,
+			);
+			process.exit(1);
+			return;
+		}
 		if (args.providers !== undefined) {
 			const parsed = parseValue("providers", args.providers);
 			if (!parsed) {

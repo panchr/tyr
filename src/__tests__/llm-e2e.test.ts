@@ -38,7 +38,7 @@ async function writeMockClaudeError(
 	return binDir;
 }
 
-/** Build env that enables allowPromptChecks and puts mock claude on PATH. */
+/** Build env that enables the LLM provider and puts mock claude on PATH. */
 function llmEnv(
 	projectDir: string,
 	mockBinDir: string,
@@ -56,12 +56,11 @@ async function writeTyrConfig(
 	overrides: Record<string, unknown> = {},
 ): Promise<void> {
 	const configPath = join(projectDir, "tyr-config.json");
+	const { providers: provOverride, ...rest } = overrides;
 	const config = {
-		allowChainedCommands: true,
-		allowPromptChecks: true,
-		cacheChecks: false,
+		providers: provOverride ?? ["chained-commands", "llm"],
 		failOpen: false,
-		...overrides,
+		...rest,
 	};
 	await writeFile(configPath, JSON.stringify(config), "utf-8");
 }
@@ -262,13 +261,13 @@ describe("LLM provider E2E", () => {
 	);
 
 	test(
-		"allowPromptChecks=false skips LLM provider",
+		"providers without llm skips LLM provider",
 		async () => {
 			const mockBin = await writeMockClaude(
 				tempDir,
 				'{"decision": "allow", "reason": "should not be consulted"}',
 			);
-			await writeTyrConfig(tempDir, { allowPromptChecks: false });
+			await writeTyrConfig(tempDir, { providers: ["chained-commands"] });
 
 			const req = makePermissionRequest({
 				cwd: tempDir,

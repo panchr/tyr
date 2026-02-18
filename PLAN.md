@@ -48,9 +48,7 @@ SQLite-backed storage for decision logs, permission cache, and metrics.
   to understand what permissions they already define. The config should be watched so we know of any changes. Define an interface for this.
 
 ## Config
-`allowChainedCommands` - whether to allow commands to be chained
-`allowPromptChecks` - whether to allow LLMs to be prompted to see if a command should be allowed
-`cacheChecks` - whether to cache check results
+`providers` - ordered list of providers to run in the pipeline (e.g. `["chained-commands", "llm"]`)
 `failOpen` - whether to allow commands when tyr encounters an error (default: `false`, i.e. fail-closed)
 
 <!-- TODO: flesh out config as needed — likely additions: per-project overrides, provider priority/ordering, LLM check timeout, log level/destination, explicit allow/deny patterns -->

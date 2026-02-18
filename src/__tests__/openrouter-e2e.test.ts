@@ -45,11 +45,9 @@ async function writeTyrConfig(
 	overrides: Record<string, unknown> = {},
 ): Promise<void> {
 	const configPath = join(projectDir, "tyr-config.json");
-	const { llm: llmOverrides, ...rest } = overrides;
+	const { llm: llmOverrides, providers: provOverride, ...rest } = overrides;
 	const config = {
-		allowChainedCommands: true,
-		allowPromptChecks: true,
-		cacheChecks: false,
+		providers: provOverride ?? ["chained-commands", "llm"],
 		failOpen: false,
 		llm: {
 			provider: "openrouter",
@@ -302,7 +300,7 @@ describe("OpenRouter provider E2E", () => {
 	);
 
 	test(
-		"allowPromptChecks=false skips OpenRouter provider",
+		"providers without llm skips OpenRouter provider",
 		async () => {
 			let apiCalled = false;
 			const server = startMockServer(() => {
@@ -315,7 +313,7 @@ describe("OpenRouter provider E2E", () => {
 			});
 			try {
 				await writeTyrConfig(tempDir, server.url.toString(), {
-					allowPromptChecks: false,
+					providers: ["chained-commands"],
 				});
 
 				const req = makePermissionRequest({

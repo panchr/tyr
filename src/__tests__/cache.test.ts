@@ -49,9 +49,7 @@ function makeConfig(
 ): TyrConfig {
 	const { llm: llmOverrides, ...rest } = overrides;
 	return {
-		allowChainedCommands: true,
-		allowPromptChecks: false,
-		cacheChecks: true,
+		providers: ["cache", "chained-commands"],
 		failOpen: false,
 		llm: {
 			provider: "claude",
@@ -293,7 +291,7 @@ describe("checkCache / writeCache", () => {
 
 describe("cache integration (judge)", () => {
 	test(
-		"judge writes cache entry with --cache-checks --fail-open",
+		"judge writes cache entry with --providers cache,chained-commands --fail-open",
 		async () => {
 			await setupTempDb();
 			const dbPath = join(tempDir, "tyr.db");
@@ -315,7 +313,8 @@ describe("cache integration (judge)", () => {
 					"run",
 					"src/index.ts",
 					"judge",
-					"--cache-checks",
+					"--providers",
+					"cache,chained-commands",
 					"--fail-open",
 				],
 				{
@@ -385,7 +384,8 @@ describe("cache integration (judge)", () => {
 					"run",
 					"src/index.ts",
 					"judge",
-					"--cache-checks",
+					"--providers",
+					"cache,chained-commands",
 					"--fail-open",
 				],
 				{
@@ -402,7 +402,8 @@ describe("cache integration (judge)", () => {
 					"run",
 					"src/index.ts",
 					"judge",
-					"--cache-checks",
+					"--providers",
+					"cache,chained-commands",
 					"--fail-open",
 				],
 				{

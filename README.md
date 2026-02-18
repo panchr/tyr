@@ -83,13 +83,12 @@ Tyr reads its own config from `~/.config/tyr/config.json` (overridable via `TYR_
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `allowChainedCommands` | boolean | `true` | Enable the chained-commands provider |
-| `allowPromptChecks` | boolean | `false` | Enable LLM-based permission checks |
-| `cacheChecks` | boolean | `false` | Enable SQLite-backed decision cache |
+| `providers` | string[] | `["chained-commands"]` | Ordered list of providers to run (`cache`, `chained-commands`, `llm`) |
 | `failOpen` | boolean | `false` | Approve on error instead of failing closed |
-| `llmModel` | string | `"haiku"` | Model identifier for LLM evaluations |
-| `llmTimeout` | number | `10` | LLM request timeout in seconds |
-| `llmCanDeny` | boolean | `false` | Whether the LLM provider can deny requests |
+| `llm.provider` | string | `"claude"` | LLM backend: `claude` or `openrouter` |
+| `llm.model` | string | `"haiku"` | Model identifier for LLM evaluations |
+| `llm.timeout` | number | `10` | LLM request timeout in seconds |
+| `llm.canDeny` | boolean | `false` | Whether the LLM provider can deny requests |
 | `verboseLog` | boolean | `false` | Include LLM prompt and parameters in log entries |
 
 All config values can be overridden per-invocation via CLI flags (e.g. `--fail-open`, `--llm-model`). The config file supports JSON with comments (JSONC).

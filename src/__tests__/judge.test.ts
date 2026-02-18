@@ -295,15 +295,14 @@ describe.concurrent("tyr judge (integration)", () => {
 	);
 
 	test(
-		"--no-allow-chained-commands disables chained commands provider",
+		"--providers with empty pipeline causes abstain",
 		async () => {
-			const { stdout, exitCode } = await runJudge(
-				JSON.stringify(VALID_REQUEST),
-				["--no-allow-chained-commands"],
-			);
-			expect(exitCode).toBe(0);
-			// Without chained commands, pipeline abstains -> empty stdout
-			expect(stdout.trim()).toBe("");
+			const { exitCode } = await runJudge(JSON.stringify(VALID_REQUEST), [
+				"--providers",
+				"",
+			]);
+			// Empty providers string is invalid
+			expect(exitCode).toBe(1);
 		},
 		{ timeout: 10_000 },
 	);

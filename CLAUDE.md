@@ -12,6 +12,10 @@ bd close <id>         # Complete work
 bd sync               # Sync with git
 ```
 
+## Backwards Compatibility
+
+Tyr is pre-v1. Do not add backwards-compatibility shims, migration code, or legacy fallbacks for config formats, log formats, or CLI flags. If the user has an outdated config, tyr should error with a clear message rather than silently migrating.
+
 ## Dev Workflow
 
 After every task, follow this workflow in order:
