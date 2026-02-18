@@ -1,10 +1,13 @@
 import { defineCommand } from "citty";
 import {
 	getConfigPath,
+	getEnvPath,
 	isValidKey,
 	parseValue,
 	readConfig,
+	readEnvFile,
 	writeConfig,
+	writeEnvVar,
 } from "../config.ts";
 
 const show = defineCommand({
@@ -62,6 +65,77 @@ const path = defineCommand({
 	},
 });
 
+function maskValue(value: string): string {
+	if (value.length <= 4) return "****";
+	return `${value.slice(0, 4)}...`;
+}
+
+const envSet = defineCommand({
+	meta: {
+		name: "set",
+		description:
+			"Set an environment variable (e.g. tyr config env set KEY VALUE)",
+	},
+	args: {
+		key: { type: "positional", description: "Variable name", required: true },
+		value: {
+			type: "positional",
+			description: "Variable value",
+			required: true,
+		},
+	},
+	run({ args }) {
+		const key = args.key as string;
+		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+			console.error(`Invalid variable name: ${key}`);
+			process.exit(1);
+			return;
+		}
+		writeEnvVar(key, args.value as string);
+		console.log(`Set ${key} in ${getEnvPath()}`);
+	},
+});
+
+const envShow = defineCommand({
+	meta: {
+		name: "show",
+		description: "Show environment variables (values masked)",
+	},
+	run() {
+		const vars = readEnvFile();
+		const entries = Object.entries(vars);
+		if (entries.length === 0) {
+			console.log("No environment variables set.");
+			return;
+		}
+		for (const [key, value] of entries) {
+			console.log(`${key}=${maskValue(value)}`);
+		}
+	},
+});
+
+const envPath = defineCommand({
+	meta: {
+		name: "path",
+		description: "Print the env file path",
+	},
+	run() {
+		console.log(getEnvPath());
+	},
+});
+
+const env = defineCommand({
+	meta: {
+		name: "env",
+		description: "Manage environment variables in tyr's .env file",
+	},
+	subCommands: {
+		set: envSet,
+		show: envShow,
+		path: envPath,
+	},
+});
+
 export default defineCommand({
 	meta: {
 		name: "config",
@@ -71,5 +145,6 @@ export default defineCommand({
 		show,
 		set,
 		path,
+		env,
 	},
 });

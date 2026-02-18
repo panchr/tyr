@@ -4,11 +4,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
 	getConfigPath,
+	getEnvPath,
 	isValidKey,
+	loadEnvFile,
 	parseValue,
 	readConfig,
+	readEnvFile,
 	stripJsonComments,
 	writeConfig,
+	writeEnvVar,
 } from "../config.ts";
 import { DEFAULT_TYR_CONFIG } from "../types.ts";
 import { saveEnv } from "./helpers/index.ts";
@@ -199,6 +203,142 @@ describe("writeConfig", () => {
 		await writeConfig(config);
 		const read = await readConfig();
 		expect(read).toEqual(config);
+	});
+});
+
+describe("getEnvPath", () => {
+	const restoreEnv = saveEnv("TYR_CONFIG_FILE");
+
+	afterEach(() => {
+		restoreEnv();
+	});
+
+	test("returns .env next to config file", () => {
+		process.env.TYR_CONFIG_FILE = "/custom/path/config.json";
+		expect(getEnvPath()).toBe("/custom/path/.env");
+	});
+
+	test("uses default config dir when no override", () => {
+		delete process.env.TYR_CONFIG_FILE;
+		expect(getEnvPath()).toMatch(/\.config\/tyr\/\.env$/);
+	});
+});
+
+describe("loadEnvFile", () => {
+	let tempDir: string;
+	const restoreConfigEnv = saveEnv("TYR_CONFIG_FILE");
+
+	beforeEach(async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "tyr-env-"));
+		process.env.TYR_CONFIG_FILE = join(tempDir, "config.json");
+	});
+
+	afterEach(async () => {
+		restoreConfigEnv();
+		// Clean up any env vars we set
+		delete process.env.TEST_LOAD_A;
+		delete process.env.TEST_LOAD_B;
+		delete process.env.TEST_LOAD_QUOTED;
+		delete process.env.TEST_LOAD_SINGLE;
+		delete process.env.TEST_LOAD_EMPTY;
+		await rm(tempDir, { recursive: true, force: true });
+	});
+
+	test("parses KEY=VALUE lines", async () => {
+		await Bun.write(
+			join(tempDir, ".env"),
+			"TEST_LOAD_A=hello\nTEST_LOAD_B=world\n",
+		);
+		loadEnvFile();
+		expect(process.env.TEST_LOAD_A).toBe("hello");
+		expect(process.env.TEST_LOAD_B).toBe("world");
+	});
+
+	test("skips comments and blank lines", async () => {
+		await Bun.write(
+			join(tempDir, ".env"),
+			"# comment\n\nTEST_LOAD_A=value\n  # indented comment\n",
+		);
+		loadEnvFile();
+		expect(process.env.TEST_LOAD_A).toBe("value");
+	});
+
+	test("strips double quotes", async () => {
+		await Bun.write(join(tempDir, ".env"), 'TEST_LOAD_QUOTED="hello world"\n');
+		loadEnvFile();
+		expect(process.env.TEST_LOAD_QUOTED).toBe("hello world");
+	});
+
+	test("strips single quotes", async () => {
+		await Bun.write(join(tempDir, ".env"), "TEST_LOAD_SINGLE='hello world'\n");
+		loadEnvFile();
+		expect(process.env.TEST_LOAD_SINGLE).toBe("hello world");
+	});
+
+	test("handles empty value", async () => {
+		await Bun.write(join(tempDir, ".env"), "TEST_LOAD_EMPTY=\n");
+		loadEnvFile();
+		expect(process.env.TEST_LOAD_EMPTY).toBe("");
+	});
+
+	test("does not overwrite existing env vars", async () => {
+		process.env.TEST_LOAD_A = "original";
+		await Bun.write(join(tempDir, ".env"), "TEST_LOAD_A=overwritten\n");
+		loadEnvFile();
+		expect(process.env.TEST_LOAD_A).toBe("original");
+	});
+
+	test("no-ops when file does not exist", () => {
+		expect(() => loadEnvFile()).not.toThrow();
+	});
+});
+
+describe("readEnvFile / writeEnvVar", () => {
+	let tempDir: string;
+	const restoreConfigEnv = saveEnv("TYR_CONFIG_FILE");
+
+	beforeEach(async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "tyr-env-"));
+		process.env.TYR_CONFIG_FILE = join(tempDir, "config.json");
+	});
+
+	afterEach(async () => {
+		restoreConfigEnv();
+		await rm(tempDir, { recursive: true, force: true });
+	});
+
+	test("readEnvFile returns empty object when file missing", () => {
+		expect(readEnvFile()).toEqual({});
+	});
+
+	test("writeEnvVar creates new file and readEnvFile reads it back", () => {
+		writeEnvVar("MY_KEY", "my_value");
+		const vars = readEnvFile();
+		expect(vars.MY_KEY).toBe("my_value");
+	});
+
+	test("writeEnvVar upserts existing key", () => {
+		writeEnvVar("MY_KEY", "first");
+		writeEnvVar("MY_KEY", "second");
+		const vars = readEnvFile();
+		expect(vars.MY_KEY).toBe("second");
+	});
+
+	test("writeEnvVar preserves other keys", () => {
+		writeEnvVar("KEY_A", "a");
+		writeEnvVar("KEY_B", "b");
+		const vars = readEnvFile();
+		expect(vars.KEY_A).toBe("a");
+		expect(vars.KEY_B).toBe("b");
+	});
+
+	test("round-trip with multiple keys", () => {
+		writeEnvVar("X", "1");
+		writeEnvVar("Y", "2");
+		writeEnvVar("Z", "3");
+		writeEnvVar("Y", "updated");
+		const vars = readEnvFile();
+		expect(vars).toEqual({ X: "1", Y: "updated", Z: "3" });
 	});
 });
 

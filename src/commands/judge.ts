@@ -2,7 +2,7 @@ import { defineCommand } from "citty";
 import { ClaudeAgent } from "../agents/claude.ts";
 import { rejectUnknownArgs } from "../args.ts";
 import { checkCache, computeConfigHash, writeCache } from "../cache.ts";
-import { readConfig } from "../config.ts";
+import { loadEnvFile, readConfig } from "../config.ts";
 import { closeDb } from "../db.ts";
 import { parsePermissionRequest, readStdin } from "../judge.ts";
 import {
@@ -156,6 +156,9 @@ export default defineCommand({
 			process.exit(0);
 			return;
 		}
+
+		// Load env vars from tyr config directory (e.g. API keys)
+		loadEnvFile();
 
 		// Build provider pipeline based on config, applying CLI overrides
 		const config = await readConfig();

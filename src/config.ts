@@ -1,3 +1,4 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -13,6 +14,86 @@ const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 /** Return the path to tyr's config file. */
 export function getConfigPath(): string {
 	return process.env.TYR_CONFIG_FILE ?? CONFIG_FILE;
+}
+
+/** Return the path to tyr's `.env` file (next to config.json). */
+export function getEnvPath(): string {
+	return join(dirname(getConfigPath()), ".env");
+}
+
+/** Parse `.env` file content into key-value pairs. */
+function parseEnv(text: string): Record<string, string> {
+	const result: Record<string, string> = {};
+	for (const line of text.split("\n")) {
+		const trimmed = line.trim();
+		if (!trimmed || trimmed.startsWith("#")) continue;
+		const eq = trimmed.indexOf("=");
+		if (eq === -1) continue;
+		const key = trimmed.slice(0, eq).trim();
+		let value = trimmed.slice(eq + 1).trim();
+		// Strip matching quotes
+		if (
+			(value.startsWith('"') && value.endsWith('"')) ||
+			(value.startsWith("'") && value.endsWith("'"))
+		) {
+			value = value.slice(1, -1);
+		}
+		result[key] = value;
+	}
+	return result;
+}
+
+/** Load `.env` from the tyr config directory into `process.env`.
+ *  Existing env vars take precedence. No-ops if the file doesn't exist. */
+export function loadEnvFile(): void {
+	const vars = readEnvFile();
+	for (const [key, value] of Object.entries(vars)) {
+		if (process.env[key] === undefined) {
+			process.env[key] = value;
+		}
+	}
+}
+
+/** Read and return parsed key-value pairs from the `.env` file. */
+export function readEnvFile(): Record<string, string> {
+	const envPath = getEnvPath();
+	let text: string;
+	try {
+		text = readFileSync(envPath, "utf-8");
+	} catch {
+		return {};
+	}
+	return parseEnv(text);
+}
+
+/** Upsert a key in the `.env` file. Creates the file if missing. */
+export function writeEnvVar(key: string, value: string): void {
+	const envPath = getEnvPath();
+	let lines: string[] = [];
+	if (existsSync(envPath)) {
+		lines = readFileSync(envPath, "utf-8").split("\n");
+	}
+
+	const prefix = `${key}=`;
+	let found = false;
+	for (let i = 0; i < lines.length; i++) {
+		const trimmed = lines[i].trim();
+		if (trimmed.startsWith("#")) continue;
+		if (trimmed.startsWith(prefix) || trimmed.startsWith(`${key} =`)) {
+			lines[i] = `${key}=${value}`;
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		lines.push(`${key}=${value}`);
+	}
+
+	// Ensure trailing newline
+	const content = lines.join("\n").replace(/\n*$/, "\n");
+	const dir = dirname(envPath);
+	mkdirSync(dir, { recursive: true });
+	writeFileSync(envPath, content, "utf-8");
 }
 
 const VALID_KEYS = new Set<keyof TyrConfig>(

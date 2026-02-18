@@ -28,9 +28,11 @@ function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
 
 let tempDir: string;
 const restoreDbEnv = saveEnv("TYR_DB_PATH");
+const restoreConfigEnv = saveEnv("TYR_CONFIG_FILE");
 afterEach(async () => {
 	resetDbInstance();
 	restoreDbEnv();
+	restoreConfigEnv();
 	if (tempDir) {
 		await rm(tempDir, { recursive: true, force: true });
 		tempDir = "";
@@ -41,6 +43,8 @@ async function setupTempDb(): Promise<string> {
 	tempDir = await mkdtemp(join(tmpdir(), "tyr-log-test-"));
 	const dbPath = join(tempDir, "tyr.db");
 	process.env.TYR_DB_PATH = dbPath;
+	// Point config at the temp dir so tests don't read production config
+	process.env.TYR_CONFIG_FILE = join(tempDir, "config.json");
 	return tempDir;
 }
 
