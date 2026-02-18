@@ -46,6 +46,7 @@ function llmEnv(
 	return {
 		CLAUDE_CONFIG_DIR: join(projectDir, "empty-user-config"),
 		TYR_CONFIG_FILE: join(projectDir, "tyr-config.json"),
+		TYR_DB_PATH: join(projectDir, "tyr.db"),
 		PATH: `${mockBinDir}:${process.env.PATH}`,
 	};
 }

@@ -33,6 +33,7 @@ function openrouterEnv(projectDir: string): Record<string, string> {
 	return {
 		CLAUDE_CONFIG_DIR: join(projectDir, "empty-user-config"),
 		TYR_CONFIG_FILE: join(projectDir, "tyr-config.json"),
+		TYR_DB_PATH: join(projectDir, "tyr.db"),
 		OPENROUTER_API_KEY: "test-key-e2e",
 		PATH: process.env.PATH ?? "",
 	};

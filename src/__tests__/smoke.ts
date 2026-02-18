@@ -24,6 +24,7 @@ let tempDir: string;
 function smokeEnv(projectDir: string): Record<string, string> {
 	return {
 		TYR_CONFIG_FILE: join(projectDir, "tyr-config.json"),
+		TYR_DB_PATH: join(projectDir, "tyr.db"),
 	};
 }
 
