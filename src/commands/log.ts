@@ -3,11 +3,20 @@ import { parseTime, rejectUnknownArgs } from "../args.ts";
 import { closeDb } from "../db.ts";
 import { type LogRow, readLogEntries } from "../log.ts";
 
+function formatTime(ts: number): string {
+	const d = new Date(ts);
+	const pad = (n: number) => String(n).padStart(2, "0");
+	const y = d.getFullYear();
+	const mo = pad(d.getMonth() + 1);
+	const da = pad(d.getDate());
+	const h = pad(d.getHours());
+	const mi = pad(d.getMinutes());
+	const se = pad(d.getSeconds());
+	return `${y}-${mo}-${da} ${h}:${mi}:${se}`;
+}
+
 function formatEntry(entry: LogRow): string {
-	const time = new Date(entry.timestamp)
-		.toISOString()
-		.replace("T", " ")
-		.replace(/\.\d+Z$/, "Z");
+	const time = formatTime(entry.timestamp);
 	const decision = entry.decision.toUpperCase();
 	const project = entry.cwd ?? "-";
 	const tool = entry.tool_name;

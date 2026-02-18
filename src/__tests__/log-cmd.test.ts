@@ -155,6 +155,28 @@ describe("tyr log", () => {
 	);
 
 	test(
+		"displays timestamps in local timezone",
+		async () => {
+			writeEntries(
+				makeEntry({
+					timestamp: new Date("2026-02-14T12:00:00.000Z").getTime(),
+				}),
+			);
+			const { stdout, exitCode } = await runLog();
+			expect(exitCode).toBe(0);
+			// Local time should not end with 'Z' (UTC indicator)
+			const lines = stdout.trim().split("\n");
+			// First line is header, second is the entry
+			expect(lines.length).toBeGreaterThanOrEqual(2);
+			const entryLine = lines[1] as string;
+			// Should match YYYY-MM-DD HH:MM:SS format without Z
+			expect(entryLine).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/);
+			expect(entryLine).not.toMatch(/\d{2}:\d{2}:\d{2}Z/);
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
 		"shows command from tool_input",
 		async () => {
 			writeEntries(makeEntry({ tool_input: "bun test" }));
