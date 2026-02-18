@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { resetDbInstance } from "../db.ts";
 import { appendLogEntry, type LlmLogEntry, type LogEntry } from "../log.ts";
 import { saveEnv } from "./helpers/index.ts";
@@ -86,7 +86,7 @@ describe("tyr log", () => {
 		"displays entries with header",
 		async () => {
 			writeEntries(makeEntry(), makeEntry({ tool_name: "Read" }));
-			const { stdout, exitCode } = await runLog();
+			const { stdout, exitCode } = await runLog("--all");
 			expect(exitCode).toBe(0);
 			expect(stdout).toContain("TIME");
 			expect(stdout).toContain("DECISION");
@@ -102,7 +102,7 @@ describe("tyr log", () => {
 		"displays cwd in output",
 		async () => {
 			writeEntries(makeEntry({ cwd: "/my/project" }));
-			const { stdout } = await runLog();
+			const { stdout } = await runLog("--all");
 			expect(stdout).toContain("/my/project");
 		},
 		{ timeout: 10_000 },
@@ -116,7 +116,7 @@ describe("tyr log", () => {
 				makeEntry({ tool_input: "cmd-two" }),
 				makeEntry({ tool_input: "cmd-three" }),
 			);
-			const { stdout, exitCode } = await runLog("--last", "1");
+			const { stdout, exitCode } = await runLog("--all", "--last", "1");
 			expect(exitCode).toBe(0);
 			expect(stdout).toContain("cmd-three");
 			expect(stdout).not.toContain("cmd-one");
@@ -131,7 +131,7 @@ describe("tyr log", () => {
 				makeEntry({ session_id: "j1" }),
 				makeEntry({ session_id: "j2" }),
 			);
-			const { stdout, exitCode } = await runLog("--json");
+			const { stdout, exitCode } = await runLog("--all", "--json");
 			expect(exitCode).toBe(0);
 			const lines = stdout.trim().split("\n");
 			expect(lines).toHaveLength(2);
@@ -151,7 +151,12 @@ describe("tyr log", () => {
 				makeEntry({ session_id: "b" }),
 				makeEntry({ session_id: "c" }),
 			);
-			const { stdout, exitCode } = await runLog("--json", "--last", "2");
+			const { stdout, exitCode } = await runLog(
+				"--all",
+				"--json",
+				"--last",
+				"2",
+			);
 			expect(exitCode).toBe(0);
 			const lines = stdout.trim().split("\n");
 			expect(lines).toHaveLength(2);
@@ -168,7 +173,7 @@ describe("tyr log", () => {
 					timestamp: new Date("2026-02-14T12:00:00.000Z").getTime(),
 				}),
 			);
-			const { stdout, exitCode } = await runLog();
+			const { stdout, exitCode } = await runLog("--all");
 			expect(exitCode).toBe(0);
 			// Local time should not end with 'Z' (UTC indicator)
 			const lines = stdout.trim().split("\n");
@@ -186,7 +191,7 @@ describe("tyr log", () => {
 		"shows command from tool_input",
 		async () => {
 			writeEntries(makeEntry({ tool_input: "bun test" }));
-			const { stdout } = await runLog();
+			const { stdout } = await runLog("--all");
 			expect(stdout).toContain("bun test");
 		},
 		{ timeout: 10_000 },
@@ -211,6 +216,7 @@ describe("tyr log", () => {
 				makeEntry({ decision: "abstain" }),
 			);
 			const { stdout, exitCode } = await runLog(
+				"--all",
 				"--json",
 				"--decision",
 				"allow",
@@ -230,7 +236,12 @@ describe("tyr log", () => {
 				makeEntry({ decision: "allow", provider: "chained-commands" }),
 				makeEntry({ decision: "allow", provider: "llm" }),
 			);
-			const { stdout, exitCode } = await runLog("--json", "--provider", "llm");
+			const { stdout, exitCode } = await runLog(
+				"--all",
+				"--json",
+				"--provider",
+				"llm",
+			);
 			expect(exitCode).toBe(0);
 			const lines = stdout.trim().split("\n");
 			expect(lines).toHaveLength(1);
@@ -271,6 +282,7 @@ describe("tyr log", () => {
 				}),
 			);
 			const { stdout, exitCode } = await runLog(
+				"--all",
 				"--json",
 				"--since",
 				"2026-02-14T00:00:00Z",
@@ -298,6 +310,7 @@ describe("tyr log", () => {
 				}),
 			);
 			const { stdout, exitCode } = await runLog(
+				"--all",
 				"--json",
 				"--until",
 				"2026-02-14T00:00:00Z",
@@ -324,6 +337,7 @@ describe("tyr log", () => {
 				makeEntry({ decision: "allow", provider: "p3" }),
 			);
 			const { stdout, exitCode } = await runLog(
+				"--all",
 				"--json",
 				"--decision",
 				"allow",
@@ -363,13 +377,65 @@ describe("tyr log", () => {
 	);
 
 	test(
+		"defaults to filtering by current directory",
+		async () => {
+			const projectRoot = resolve(import.meta.dir, "../..");
+			writeEntries(
+				makeEntry({ cwd: projectRoot, session_id: "local" }),
+				makeEntry({ cwd: "/other/project", session_id: "remote" }),
+			);
+			const { stdout, exitCode } = await runLog("--json");
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(1);
+			expect(JSON.parse(lines[0] as string).session_id).toBe("local");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--all shows entries from all directories",
+		async () => {
+			writeEntries(
+				makeEntry({ cwd: "/project-a", session_id: "a" }),
+				makeEntry({ cwd: "/project-b", session_id: "b" }),
+			);
+			const { stdout, exitCode } = await runLog("--all", "--json");
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(2);
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--cwd overrides default directory filter",
+		async () => {
+			writeEntries(
+				makeEntry({ cwd: "/custom/path", session_id: "custom" }),
+				makeEntry({ cwd: "/other/path", session_id: "other" }),
+			);
+			const { stdout, exitCode } = await runLog(
+				"--json",
+				"--cwd",
+				"/custom/path",
+			);
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(1);
+			expect(JSON.parse(lines[0] as string).session_id).toBe("custom");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
 		"--verbose shows model and prompt in table mode",
 		async () => {
 			writeEntries([
 				makeEntry({ tool_input: "echo hi" }),
 				{ prompt: "Is this command safe?", model: "haiku" },
 			]);
-			const { stdout, exitCode } = await runLog("--verbose");
+			const { stdout, exitCode } = await runLog("--all", "--verbose");
 			expect(exitCode).toBe(0);
 			expect(stdout).toContain("echo hi");
 			expect(stdout).toContain("model: haiku");
@@ -385,7 +451,7 @@ describe("tyr log", () => {
 				makeEntry({ session_id: "v1" }),
 				{ prompt: "Check this", model: "sonnet" },
 			]);
-			const { stdout, exitCode } = await runLog("--verbose", "--json");
+			const { stdout, exitCode } = await runLog("--all", "--verbose", "--json");
 			expect(exitCode).toBe(0);
 			const row = JSON.parse(stdout.trim());
 			expect(row.session_id).toBe("v1");
@@ -401,7 +467,7 @@ describe("tyr log", () => {
 		"--verbose with no llm logs shows no extra output",
 		async () => {
 			writeEntries(makeEntry({ tool_input: "ls" }));
-			const { stdout, exitCode } = await runLog("--verbose");
+			const { stdout, exitCode } = await runLog("--all", "--verbose");
 			expect(exitCode).toBe(0);
 			expect(stdout).toContain("ls");
 			expect(stdout).not.toContain("model:");
@@ -436,7 +502,7 @@ describe("tyr log", () => {
 			expect(stdout).toContain("Cleared 3 log entries");
 
 			// Verify entries are gone
-			const { stdout: after, exitCode: afterCode } = await runLog();
+			const { stdout: after, exitCode: afterCode } = await runLog("--all");
 			expect(afterCode).toBe(0);
 			expect(after).toContain("No log entries yet.");
 		},
@@ -473,7 +539,7 @@ describe("tyr log", () => {
 				"utf-8",
 			);
 
-			const { stdout, exitCode } = await runLog("--json");
+			const { stdout, exitCode } = await runLog("--all", "--json");
 			expect(exitCode).toBe(0);
 			const lines = stdout.trim().split("\n");
 			expect(lines).toHaveLength(1);
@@ -499,7 +565,7 @@ describe("tyr log", () => {
 				"utf-8",
 			);
 
-			const { stdout, exitCode } = await runLog("--json");
+			const { stdout, exitCode } = await runLog("--all", "--json");
 			expect(exitCode).toBe(0);
 			const lines = stdout.trim().split("\n");
 			expect(lines).toHaveLength(2);

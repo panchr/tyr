@@ -72,7 +72,11 @@ const logArgs = {
 	},
 	cwd: {
 		type: "string" as const,
-		description: "Filter by cwd path prefix",
+		description: "Filter by cwd path prefix (default: current directory)",
+	},
+	all: {
+		type: "boolean" as const,
+		description: "Show entries from all projects (default: current directory)",
 	},
 };
 
@@ -140,13 +144,16 @@ export default defineCommand({
 			// Best-effort: don't fail if config is unreadable
 		}
 
+		// Default to current directory unless --all or --cwd is provided
+		const cwdFilter = args.all ? undefined : (args.cwd ?? process.cwd());
+
 		const entries = readLogEntries({
 			last: last > 0 ? last : undefined,
 			since,
 			until,
 			decision: args.decision,
 			provider: args.provider,
-			cwd: args.cwd,
+			cwd: cwdFilter,
 		});
 
 		const verboseMode = args.verbose ?? false;
