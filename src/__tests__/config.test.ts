@@ -10,6 +10,7 @@ import {
 	parseValue,
 	readConfig,
 	readEnvFile,
+	readRawConfig,
 	stripJsonComments,
 	writeConfig,
 	writeEnvVar,
@@ -144,6 +145,47 @@ describe.concurrent("stripJsonComments", () => {
 	test("strips multi-line block comment", () => {
 		const input = '{\n  /*\n   * multi\n   * line\n   */\n  "key": 1\n}';
 		expect(JSON.parse(stripJsonComments(input))).toEqual({ key: 1 });
+	});
+});
+
+describe("readRawConfig", () => {
+	let tempDir: string;
+	const restoreEnv = saveEnv("TYR_CONFIG_FILE");
+
+	beforeEach(async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "tyr-config-"));
+		process.env.TYR_CONFIG_FILE = join(tempDir, "config.json");
+	});
+
+	afterEach(async () => {
+		restoreEnv();
+		await rm(tempDir, { recursive: true, force: true });
+	});
+
+	test("returns empty object when file missing", async () => {
+		const raw = await readRawConfig();
+		expect(raw).toEqual({});
+	});
+
+	test("reads JSON without schema validation", async () => {
+		const path = getConfigPath();
+		await Bun.write(path, JSON.stringify({ unknown: "key", failOpen: true }));
+		const raw = await readRawConfig();
+		expect(raw.unknown).toBe("key");
+		expect(raw.failOpen).toBe(true);
+	});
+
+	test("strips JSONC comments", async () => {
+		const path = getConfigPath();
+		await Bun.write(path, '{\n  // comment\n  "failOpen": true\n}\n');
+		const raw = await readRawConfig();
+		expect(raw.failOpen).toBe(true);
+	});
+
+	test("re-throws non-ENOENT errors", async () => {
+		// Point to a directory instead of a file to trigger a non-ENOENT error
+		process.env.TYR_CONFIG_FILE = tempDir;
+		await expect(readRawConfig()).rejects.toThrow();
 	});
 });
 
@@ -453,6 +495,38 @@ describe("tyr config CLI (integration)", () => {
 			const { stderr, exitCode } = await runConfig("set", "failOpen", "maybe");
 			expect(exitCode).toBe(1);
 			expect(stderr).toContain("Invalid value");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"config set rejects config that still has unknown keys",
+		async () => {
+			// Write a config with an unknown key (e.g., old "llm" key)
+			const configPath = join(tempDir, "config.json");
+			await Bun.write(
+				configPath,
+				JSON.stringify({ llm: { model: "haiku" }, failOpen: false }),
+			);
+
+			// Setting a valid key won't help because "llm" is still present
+			const { stderr, exitCode } = await runConfig("set", "failOpen", "true");
+			expect(exitCode).toBe(1);
+			expect(stderr).toContain("Config would still be invalid");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"config set succeeds on valid config file",
+		async () => {
+			// Write valid but incomplete config
+			const configPath = join(tempDir, "config.json");
+			await Bun.write(configPath, JSON.stringify({ failOpen: false }));
+
+			const { stdout, exitCode } = await runConfig("set", "failOpen", "true");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("Set failOpen = true");
 		},
 		{ timeout: 10_000 },
 	);

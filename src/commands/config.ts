@@ -6,9 +6,11 @@ import {
 	parseValue,
 	readConfig,
 	readEnvFile,
+	readRawConfig,
 	writeConfig,
 	writeEnvVar,
 } from "../config.ts";
+import { type TyrConfig, TyrConfigSchema } from "../types.ts";
 
 const show = defineCommand({
 	meta: {
@@ -53,21 +55,31 @@ const set = defineCommand({
 			return;
 		}
 
-		const config = await readConfig().catch((err) => {
+		const raw = await readRawConfig().catch((err) => {
 			console.error(
-				`Invalid config: ${err instanceof Error ? err.message : err}`,
+				`Cannot read config: ${err instanceof Error ? err.message : err}`,
 			);
 			return process.exit(1) as never;
 		});
 		const parts = key.split(".");
 		if (parts.length === 2) {
-			const [group, field] = parts;
-			const obj = config as unknown as Record<string, Record<string, unknown>>;
-			const groupKey = group as string;
-			if (!obj[groupKey]) obj[groupKey] = {};
-			obj[groupKey][field as string] = parsed;
+			const group = parts[0] as string;
+			const field = parts[1] as string;
+			if (!raw[group] || typeof raw[group] !== "object") raw[group] = {};
+			(raw[group] as Record<string, unknown>)[field] = parsed;
 		} else {
-			(config as unknown as Record<string, unknown>)[key] = parsed;
+			raw[key] = parsed;
+		}
+
+		let config: TyrConfig;
+		try {
+			config = TyrConfigSchema.strict().parse(raw);
+		} catch (err) {
+			console.error(
+				`Config would still be invalid after this change: ${err instanceof Error ? err.message : err}`,
+			);
+			process.exit(1);
+			return;
 		}
 		await writeConfig(config);
 		console.log(`Set ${key} = ${String(parsed)}`);

@@ -2,12 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import {
-	DEFAULT_TYR_CONFIG,
-	PROVIDER_NAMES,
-	type TyrConfig,
-	TyrConfigSchema,
-} from "./types.ts";
+import { PROVIDER_NAMES, type TyrConfig, TyrConfigSchema } from "./types.ts";
 
 const CONFIG_DIR = join(homedir(), ".config", "tyr");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
@@ -156,9 +151,9 @@ export function stripJsonComments(text: string): string {
 	return result;
 }
 
-/** Read tyr's config. Returns defaults when the file is missing.
- *  Supports JSONC (JSON with Comments). Rejects unrecognized keys. */
-export async function readConfig(): Promise<TyrConfig> {
+/** Read the raw JSON from tyr's config file without schema validation.
+ *  Returns an empty object when the file is missing. Supports JSONC. */
+export async function readRawConfig(): Promise<Record<string, unknown>> {
 	const path = getConfigPath();
 	let text: string;
 	try {
@@ -169,11 +164,17 @@ export async function readConfig(): Promise<TyrConfig> {
 			"code" in err &&
 			(err as NodeJS.ErrnoException).code === "ENOENT"
 		) {
-			return { ...DEFAULT_TYR_CONFIG };
+			return {};
 		}
 		throw err;
 	}
-	const raw = JSON.parse(stripJsonComments(text));
+	return JSON.parse(stripJsonComments(text)) as Record<string, unknown>;
+}
+
+/** Read tyr's config. Returns defaults when the file is missing.
+ *  Supports JSONC (JSON with Comments). Rejects unrecognized keys. */
+export async function readConfig(): Promise<TyrConfig> {
+	const raw = await readRawConfig();
 	return TyrConfigSchema.strict().parse(raw);
 }
 
