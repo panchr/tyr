@@ -11,9 +11,13 @@
     "src/",
     "!src/__tests__/"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "start": "bun run src/index.ts",
     "build": "bun run scripts/build.ts",
+    "publish": "npm publish",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
     "test": "bun test",
