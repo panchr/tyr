@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { getDb, resetDbInstance } from "../db.ts";
 import {
 	appendLogEntry,
+	clearLogs,
 	type LogEntry,
 	type LogRow,
 	readLogEntries,
@@ -142,6 +143,33 @@ describe("log (SQLite)", () => {
 		const entries = readLogEntries({ decision: "allow" });
 		expect(entries).toHaveLength(1);
 		expect(entries[0]?.decision).toBe("allow");
+	});
+
+	test("clearLogs deletes all entries", async () => {
+		await setupTempDb();
+		appendLogEntry(makeEntry({ session_id: "s1" }));
+		appendLogEntry(makeEntry({ session_id: "s2" }));
+		appendLogEntry(makeEntry({ session_id: "s3" }));
+
+		const deleted = clearLogs();
+		expect(deleted).toBe(3);
+		expect(readLogEntries()).toEqual([]);
+	});
+
+	test("clearLogs also deletes llm_logs", async () => {
+		await setupTempDb();
+		appendLogEntry(makeEntry(), { prompt: "test prompt", model: "haiku" });
+
+		clearLogs();
+
+		const db = getDb();
+		const llmRows = db.query("SELECT * FROM llm_logs").all();
+		expect(llmRows).toEqual([]);
+	});
+
+	test("clearLogs returns 0 on empty DB", async () => {
+		await setupTempDb();
+		expect(clearLogs()).toBe(0);
 	});
 
 	test("filter by since", async () => {

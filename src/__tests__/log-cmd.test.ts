@@ -419,4 +419,37 @@ describe("tyr log", () => {
 		},
 		{ timeout: 10_000 },
 	);
+
+	test(
+		"clear deletes all log entries",
+		async () => {
+			writeEntries(
+				makeEntry({ session_id: "c1" }),
+				makeEntry({ session_id: "c2" }),
+				makeEntry({ session_id: "c3" }),
+			);
+			// Reset the in-process DB so the subprocess gets its own connection
+			resetDbInstance();
+
+			const { stdout, exitCode } = await runLog("clear");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("Cleared 3 log entries");
+
+			// Verify entries are gone
+			const { stdout: after, exitCode: afterCode } = await runLog();
+			expect(afterCode).toBe(0);
+			expect(after).toContain("No log entries yet.");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"clear on empty DB shows 0",
+		async () => {
+			const { stdout, exitCode } = await runLog("clear");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("Cleared 0 log entries");
+		},
+		{ timeout: 10_000 },
+	);
 });

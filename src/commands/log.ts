@@ -2,6 +2,7 @@ import { defineCommand } from "citty";
 import { parseTime, rejectUnknownArgs } from "../args.ts";
 import { closeDb } from "../db.ts";
 import {
+	clearLogs,
 	type LlmLogRow,
 	type LogRow,
 	readLlmLogs,
@@ -73,13 +74,26 @@ const logArgs = {
 	},
 };
 
+function handleClear(): void {
+	const deleted = clearLogs();
+	console.log(`Cleared ${deleted} log entries.`);
+	closeDb();
+}
+
 export default defineCommand({
 	meta: {
 		name: "log",
-		description: "View permission check history",
+		description:
+			"View permission check history (use 'tyr log clear' to truncate)",
 	},
 	args: logArgs,
 	async run({ args, rawArgs }) {
+		// Handle "tyr log clear" subcommand
+		if (rawArgs.includes("clear")) {
+			handleClear();
+			return;
+		}
+
 		rejectUnknownArgs(rawArgs, logArgs);
 		const last = args.last ? Number.parseInt(args.last, 10) : 20;
 		const jsonMode = args.json ?? false;

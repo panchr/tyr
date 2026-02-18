@@ -109,6 +109,14 @@ export interface ReadLogOptions {
 	cwd?: string;
 }
 
+/** Delete all log entries and associated LLM logs. Returns the number of rows deleted. */
+export function clearLogs(): number {
+	const db = getDb();
+	db.run("DELETE FROM llm_logs");
+	const result = db.query("DELETE FROM logs").run();
+	return result.changes;
+}
+
 export function readLogEntries(opts: ReadLogOptions = {}): LogRow[] {
 	const db = getDb();
 	const conditions: string[] = [];
