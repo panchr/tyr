@@ -16,7 +16,6 @@ function isolatedEnv(projectDir: string): Record<string, string> {
 	return {
 		CLAUDE_CONFIG_DIR: join(projectDir, "empty-user-config"),
 		TYR_CONFIG_FILE: join(projectDir, "tyr-config.json"),
-		TYR_LOG_FILE: join(projectDir, "tyr.log"),
 	};
 }
 

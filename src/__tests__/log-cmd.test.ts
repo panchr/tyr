@@ -38,7 +38,10 @@ async function runLog(
 		cwd: `${import.meta.dir}/../..`,
 		stdout: "pipe",
 		stderr: "pipe",
-		env: { ...process.env, TYR_DB_PATH: dbPath },
+		env: {
+			...process.env,
+			TYR_DB_PATH: dbPath,
+		},
 	});
 	const [stdout, stderr] = await Promise.all([
 		new Response(proc.stdout).text(),

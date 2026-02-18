@@ -108,6 +108,7 @@ async function runJudge(
 			stdout: "pipe",
 			stderr: "pipe",
 			stdin: new Response(stdin).body,
+			env: process.env,
 		},
 	);
 	const [stdout, stderr] = await Promise.all([

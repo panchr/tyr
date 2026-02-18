@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getDb, resetDbInstance } from "../db.ts";
@@ -7,7 +7,6 @@ import {
 	appendLogEntry,
 	type LogEntry,
 	type LogRow,
-	migrateJsonlToSqlite,
 	readLogEntries,
 } from "../log.ts";
 import { saveEnv } from "./helpers/index.ts";
@@ -29,12 +28,9 @@ function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
 
 let tempDir: string;
 const restoreDbEnv = saveEnv("TYR_DB_PATH");
-const restoreLogEnv = saveEnv("TYR_LOG_FILE");
-
 afterEach(async () => {
 	resetDbInstance();
 	restoreDbEnv();
-	restoreLogEnv();
 	if (tempDir) {
 		await rm(tempDir, { recursive: true, force: true });
 		tempDir = "";
@@ -45,8 +41,6 @@ async function setupTempDb(): Promise<string> {
 	tempDir = await mkdtemp(join(tmpdir(), "tyr-log-test-"));
 	const dbPath = join(tempDir, "tyr.db");
 	process.env.TYR_DB_PATH = dbPath;
-	// Point legacy log path to same temp dir (for migration tests)
-	process.env.TYR_LOG_FILE = join(tempDir, "log.jsonl");
 	return tempDir;
 }
 
@@ -154,90 +148,6 @@ describe("log (SQLite)", () => {
 
 		const entries = readLogEntries({ since: now - 5000 });
 		expect(entries).toHaveLength(1);
-	});
-});
-
-// -- Legacy JSONL entries for integration tests --
-
-function makeLegacyJsonlEntry(overrides: Record<string, unknown> = {}): string {
-	return JSON.stringify({
-		timestamp: "2026-02-14T12:00:00.000Z",
-		cwd: "/test/dir",
-		tool_name: "Bash",
-		tool_input: { command: "echo hello" },
-		decision: "abstain",
-		provider: null,
-		duration_ms: 5,
-		session_id: "test-session",
-		...overrides,
-	});
-}
-
-describe("JSONL migration", () => {
-	test("imports valid entries and deletes file", async () => {
-		const dir = await setupTempDb();
-		const logFile = join(dir, "log.jsonl");
-		await writeFile(
-			logFile,
-			`${makeLegacyJsonlEntry({ session_id: "m1" })}\n${makeLegacyJsonlEntry({ session_id: "m2" })}\n`,
-		);
-
-		migrateJsonlToSqlite();
-
-		const entries = readLogEntries();
-		expect(entries).toHaveLength(2);
-		expect(entries[0]?.session_id).toBe("m1");
-		expect(entries[1]?.session_id).toBe("m2");
-		expect(entries[0]?.tool_input).toBe("echo hello");
-		expect(entries[0]?.input).toBe('{"command":"echo hello"}');
-
-		// File should be deleted
-		const file = Bun.file(logFile);
-		expect(await file.exists()).toBe(false);
-	});
-
-	test("skips malformed lines", async () => {
-		const dir = await setupTempDb();
-		const logFile = join(dir, "log.jsonl");
-		await writeFile(
-			logFile,
-			`${makeLegacyJsonlEntry({ session_id: "valid" })}\nnot-json{{{corrupt\n`,
-		);
-
-		migrateJsonlToSqlite();
-
-		const entries = readLogEntries();
-		expect(entries).toHaveLength(1);
-		expect(entries[0]?.session_id).toBe("valid");
-	});
-
-	test("no-op if file doesn't exist", async () => {
-		await setupTempDb();
-		migrateJsonlToSqlite(); // should not throw
-		const entries = readLogEntries();
-		expect(entries).toEqual([]);
-	});
-
-	test("migrates LLM fields into llm_logs table", async () => {
-		const dir = await setupTempDb();
-		const logFile = join(dir, "log.jsonl");
-		await writeFile(
-			logFile,
-			`${makeLegacyJsonlEntry({ llm_prompt: "Is this safe?", llm_model: "haiku" })}\n`,
-		);
-
-		migrateJsonlToSqlite();
-
-		const entries = readLogEntries();
-		expect(entries).toHaveLength(1);
-
-		const db = getDb();
-		const llmRow = db
-			.query("SELECT * FROM llm_logs WHERE log_id = ?")
-			.get(entries[0]?.id) as { prompt: string; model: string } | null;
-		expect(llmRow).not.toBeNull();
-		expect(llmRow?.prompt).toBe("Is this safe?");
-		expect(llmRow?.model).toBe("haiku");
 	});
 });
 

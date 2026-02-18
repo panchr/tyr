@@ -287,7 +287,6 @@ describe("cache integration (judge)", () => {
 					env: {
 						...process.env,
 						TYR_DB_PATH: dbPath,
-						TYR_LOG_FILE: join(tempDir, "log.jsonl"),
 					},
 				},
 			);
@@ -333,7 +332,6 @@ describe("cache integration (judge)", () => {
 				env: {
 					...process.env,
 					TYR_DB_PATH: dbPath,
-					TYR_LOG_FILE: join(tempDir, "log.jsonl"),
 				},
 			};
 

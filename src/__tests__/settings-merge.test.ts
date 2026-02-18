@@ -167,7 +167,6 @@ describe("tyr judge: settings merge across scopes", () => {
 		return {
 			CLAUDE_CONFIG_DIR: configDir ?? join(projectDir, "empty-user-config"),
 			TYR_CONFIG_FILE: join(projectDir, "tyr-config.json"),
-			TYR_LOG_FILE: join(projectDir, "tyr.log"),
 		};
 	}
 

@@ -10,7 +10,6 @@ import {
 	extractToolInput,
 	type LlmLogEntry,
 	type LogEntry,
-	migrateJsonlToSqlite,
 } from "../log.ts";
 import { runPipeline } from "../pipeline.ts";
 import { buildPrompt } from "../prompts.ts";
@@ -127,13 +126,6 @@ export default defineCommand({
 			console.error(
 				`[tyr] tool=${req.tool_name} input=${JSON.stringify(req.tool_input)}`,
 			);
-		}
-
-		// Migrate legacy JSONL logs on first run
-		try {
-			migrateJsonlToSqlite(verbose);
-		} catch (err) {
-			if (verbose) console.error("[tyr] JSONL migration failed:", err);
 		}
 
 		// Audit mode: log the request and exit without running the pipeline
