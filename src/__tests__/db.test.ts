@@ -8,7 +8,9 @@ import {
 	closeDb,
 	getDb,
 	getDbPath,
+	migrations,
 	resetDbInstance,
+	runMigrations,
 } from "../db.ts";
 import { saveEnv } from "./helpers/index.ts";
 
@@ -257,7 +259,7 @@ describe("db", () => {
 		).run();
 		db.close();
 
-		expect(() => getDb()).toThrow("tyr db:migrate");
+		expect(() => getDb()).toThrow("tyr db migrate");
 	});
 
 	test("version mismatch (too new) emits actionable error", async () => {
@@ -304,5 +306,54 @@ describe("db", () => {
 
 		const db = getDb();
 		expect(db).toBeInstanceOf(Database);
+	});
+});
+
+describe("runMigrations", () => {
+	test("no-op when already at current version", async () => {
+		await setupTempDb();
+		getDb();
+		resetDbInstance();
+
+		const raw = new Database(getDbPath());
+		const result = runMigrations(raw);
+		expect(result.applied).toBe(0);
+		expect(result.fromVersion).toBe(CURRENT_SCHEMA_VERSION);
+		expect(result.toVersion).toBe(CURRENT_SCHEMA_VERSION);
+		raw.close();
+	});
+
+	test("throws on uninitialized database (no _meta)", async () => {
+		const dbPath = await setupTempDb();
+		const raw = new Database(dbPath);
+		expect(() => runMigrations(raw)).toThrow("no _meta table");
+		raw.close();
+	});
+
+	test("throws on missing schema_version", async () => {
+		const dbPath = await setupTempDb();
+		const raw = new Database(dbPath);
+		raw.run(
+			"CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+		);
+		expect(() => runMigrations(raw)).toThrow("missing schema_version");
+		raw.close();
+	});
+
+	test("throws on future version", async () => {
+		const dbPath = await setupTempDb();
+		const raw = new Database(dbPath);
+		raw.run(
+			"CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+		);
+		raw
+			.query("INSERT INTO _meta (key, value) VALUES ('schema_version', '999')")
+			.run();
+		expect(() => runMigrations(raw)).toThrow("Upgrade tyr");
+		raw.close();
+	});
+
+	test("migrations array length matches CURRENT_SCHEMA_VERSION - 1", () => {
+		expect(migrations.length).toBe(CURRENT_SCHEMA_VERSION - 1);
 	});
 });

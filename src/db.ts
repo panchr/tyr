@@ -58,7 +58,7 @@ const SCHEMA_STATEMENTS = [
 )`,
 ];
 
-function getSchemaVersion(db: Database): number | null {
+export function getSchemaVersion(db: Database): number | null {
 	const row = db
 		.query("SELECT value FROM _meta WHERE key = 'schema_version'")
 		.get() as { value: string } | null;
@@ -68,7 +68,7 @@ function getSchemaVersion(db: Database): number | null {
 function checkVersion(version: number): void {
 	if (version < CURRENT_SCHEMA_VERSION) {
 		throw new Error(
-			`[tyr] database schema is v${version} but tyr requires v${CURRENT_SCHEMA_VERSION}. Run 'tyr db:migrate' to upgrade.`,
+			`[tyr] database schema is v${version} but tyr requires v${CURRENT_SCHEMA_VERSION}. Run 'tyr db migrate' to upgrade.`,
 		);
 	}
 	if (version > CURRENT_SCHEMA_VERSION) {
@@ -78,15 +78,82 @@ function checkVersion(version: number): void {
 	}
 }
 
-function hasMetaTable(db: Database): boolean {
+/**
+ * Sequential migration functions. Each entry migrates from version N to N+1.
+ * migrations[0] migrates v1 → v2, migrations[1] migrates v2 → v3, etc.
+ *
+ * Rules for writing migrations:
+ * - cache table is ephemeral: DROP + CREATE is fine
+ * - logs/llm_logs are historical: only ADD COLUMN, never drop data
+ * - For complex changes, use rename-copy-drop pattern
+ */
+export const migrations: ReadonlyArray<(db: Database) => void> = [
+	// Add new migration functions here when CURRENT_SCHEMA_VERSION is bumped.
+	// Example: (db) => { db.run("ALTER TABLE logs ADD COLUMN new_col TEXT"); }
+];
+
+export interface MigrationResult {
+	fromVersion: number;
+	toVersion: number;
+	applied: number;
+}
+
+/** Run pending migrations from current version up to CURRENT_SCHEMA_VERSION. */
+export function runMigrations(db: Database): MigrationResult {
+	if (!hasMetaTable(db)) {
+		throw new Error(
+			"[tyr] database has no _meta table. Cannot migrate an uninitialized database.",
+		);
+	}
+
+	const version = getSchemaVersion(db);
+	if (version === null) {
+		throw new Error(
+			"[tyr] database is missing schema_version. Cannot determine migration starting point.",
+		);
+	}
+
+	if (version > CURRENT_SCHEMA_VERSION) {
+		throw new Error(
+			`[tyr] database schema is v${version} but this tyr only supports up to v${CURRENT_SCHEMA_VERSION}. Upgrade tyr.`,
+		);
+	}
+
+	if (version === CURRENT_SCHEMA_VERSION) {
+		return { fromVersion: version, toVersion: version, applied: 0 };
+	}
+
+	const fromVersion = version;
+	db.transaction(() => {
+		for (let v = version; v < CURRENT_SCHEMA_VERSION; v++) {
+			const migrate = migrations[v - 1];
+			if (!migrate) {
+				throw new Error(
+					`[tyr] missing migration function for v${v} → v${v + 1}`,
+				);
+			}
+			migrate(db);
+		}
+		db.query("UPDATE _meta SET value = ? WHERE key = 'schema_version'").run(
+			String(CURRENT_SCHEMA_VERSION),
+		);
+	})();
+
+	return {
+		fromVersion,
+		toVersion: CURRENT_SCHEMA_VERSION,
+		applied: CURRENT_SCHEMA_VERSION - fromVersion,
+	};
+}
+
+export function hasMetaTable(db: Database): boolean {
 	const row = db
 		.query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='_meta'")
 		.get();
 	return row !== null;
 }
 
-function initDb(db: Database): void {
-	// PRAGMAs must run outside transactions
+function setPragmas(db: Database): void {
 	const walResult = db.query("PRAGMA journal_mode = WAL").get() as {
 		journal_mode: string;
 	};
@@ -97,13 +164,26 @@ function initDb(db: Database): void {
 	}
 	db.run("PRAGMA busy_timeout = 5000");
 	db.run("PRAGMA foreign_keys = ON");
+}
+
+/** Open a raw Database connection with PRAGMAs set, bypassing version checks. */
+export function openRawDb(dbPath?: string): Database {
+	const p = dbPath ?? getDbPath();
+	mkdirSync(dirname(p), { recursive: true });
+	const db = new Database(p);
+	setPragmas(db);
+	return db;
+}
+
+function initDb(db: Database): void {
+	setPragmas(db);
 
 	// If _meta exists, this is an existing DB — check version before touching anything
 	if (hasMetaTable(db)) {
 		const version = getSchemaVersion(db);
 		if (version === null) {
 			throw new Error(
-				"[tyr] database is missing schema_version. Delete the DB or run 'tyr db:migrate'.",
+				"[tyr] database is missing schema_version. Delete the DB or run 'tyr db migrate'.",
 			);
 		}
 		checkVersion(version);

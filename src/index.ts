@@ -2,6 +2,7 @@
 
 import { defineCommand, runMain } from "citty";
 import config from "./commands/config.ts";
+import db from "./commands/db.ts";
 import debug from "./commands/debug.ts";
 import install from "./commands/install.ts";
 import judge from "./commands/judge.ts";
@@ -20,6 +21,7 @@ const main = defineCommand({
 	},
 	subCommands: {
 		config,
+		db,
 		debug,
 		install,
 		judge,

@@ -31,7 +31,7 @@ describe.concurrent("cli routing", () => {
 				env: isolatedEnv(),
 			});
 			expect(stdout).toContain(
-				"config|debug|install|judge|log|stats|suggest|uninstall|version",
+				"config|db|debug|install|judge|log|stats|suggest|uninstall|version",
 			);
 			expect(exitCode).not.toBe(0);
 		},
@@ -45,7 +45,7 @@ describe.concurrent("cli routing", () => {
 				env: isolatedEnv(),
 			});
 			expect(stdout).toContain(
-				"config|debug|install|judge|log|stats|suggest|uninstall|version",
+				"config|db|debug|install|judge|log|stats|suggest|uninstall|version",
 			);
 			expect(exitCode).toBe(0);
 		},
@@ -71,7 +71,7 @@ describe.concurrent("cli routing", () => {
 				env: isolatedEnv(),
 			});
 			expect(stdout).toContain(
-				"config|debug|install|judge|log|stats|suggest|uninstall|version",
+				"config|db|debug|install|judge|log|stats|suggest|uninstall|version",
 			);
 			expect(exitCode).not.toBe(0);
 		},
