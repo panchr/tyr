@@ -121,4 +121,65 @@ describe("ChainedCommandsProvider", () => {
 		);
 		expect(result.decision).toBe("deny");
 	});
+
+	test("|| operator: all allowed returns allow", async () => {
+		const result = await provider.checkPermission(
+			makeReq("git status || echo fallback"),
+		);
+		expect(result.decision).toBe("allow");
+	});
+
+	test("|| operator: deny in second branch returns deny", async () => {
+		const result = await provider.checkPermission(
+			makeReq("echo hello || rm -rf /"),
+		);
+		expect(result.decision).toBe("deny");
+	});
+
+	test("semicolons: all allowed returns allow", async () => {
+		const result = await provider.checkPermission(
+			makeReq("git status; echo done"),
+		);
+		expect(result.decision).toBe("allow");
+	});
+
+	test("semicolons: deny in chain returns deny", async () => {
+		const result = await provider.checkPermission(
+			makeReq("echo hello; rm -rf /"),
+		);
+		expect(result.decision).toBe("deny");
+	});
+
+	test("mixed operators: all allowed returns allow", async () => {
+		const result = await provider.checkPermission(
+			makeReq("git status && echo ok || echo fail"),
+		);
+		expect(result.decision).toBe("allow");
+	});
+
+	test("mixed operators: unknown causes abstain", async () => {
+		const result = await provider.checkPermission(
+			makeReq("git status && curl example.com || echo fail"),
+		);
+		expect(result.decision).toBe("abstain");
+	});
+
+	test("mixed operators: deny wins over allowed", async () => {
+		const result = await provider.checkPermission(
+			makeReq("git status; echo ok || rm -rf /"),
+		);
+		expect(result.decision).toBe("deny");
+	});
+
+	test("command substitution: inner command is checked", async () => {
+		const result = await provider.checkPermission(
+			makeReq("echo $(git status)"),
+		);
+		expect(result.decision).toBe("allow");
+	});
+
+	test("command substitution: deny inside returns deny", async () => {
+		const result = await provider.checkPermission(makeReq("echo $(rm -rf /)"));
+		expect(result.decision).toBe("deny");
+	});
 });
