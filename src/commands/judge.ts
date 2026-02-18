@@ -231,7 +231,7 @@ export default defineCommand({
 					break;
 				}
 				case "chained-commands":
-					providers.push(new ChainedCommandsProvider(agent));
+					providers.push(new ChainedCommandsProvider(agent, verbose));
 					break;
 				case "llm":
 					if (config.llm.provider === "openrouter") {

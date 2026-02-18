@@ -11,7 +11,10 @@ import { parseCommands } from "./shell-parser.ts";
 export class ChainedCommandsProvider implements Provider {
 	readonly name = "chained-commands";
 
-	constructor(private agent: ClaudeAgent) {}
+	constructor(
+		private agent: ClaudeAgent,
+		private verbose = false,
+	) {}
 
 	async checkPermission(req: PermissionRequest): Promise<ProviderResult> {
 		if (req.tool_name !== "Bash") return { decision: "abstain" };
@@ -26,10 +29,17 @@ export class ChainedCommandsProvider implements Provider {
 		let allAllowed = true;
 		for (const sub of subCommands) {
 			const result = this.agent.isCommandAllowed(sub.command);
+			if (this.verbose) {
+				console.error(`[tyr] chained-commands: "${sub.command}" → ${result}`);
+			}
 			if (result === "deny") return { decision: "deny" };
 			if (result !== "allow") allAllowed = false;
 		}
 
-		return { decision: allAllowed ? "allow" : "abstain" };
+		const decision = allAllowed ? "allow" : "abstain";
+		if (this.verbose) {
+			console.error(`[tyr] chained-commands: overall → ${decision}`);
+		}
+		return { decision };
 	}
 }
