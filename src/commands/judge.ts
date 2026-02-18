@@ -177,11 +177,11 @@ export default defineCommand({
 				process.exit(1);
 				return;
 			}
-			config.llmProvider = p;
+			config.llm.provider = p;
 		}
-		if (args["llm-model"] !== undefined) config.llmModel = args["llm-model"];
+		if (args["llm-model"] !== undefined) config.llm.model = args["llm-model"];
 		if (args["llm-endpoint"] !== undefined)
-			config.llmEndpoint = args["llm-endpoint"];
+			config.llm.endpoint = args["llm-endpoint"];
 		if (args["llm-timeout"] !== undefined) {
 			const t = Number(args["llm-timeout"]);
 			if (!Number.isFinite(t) || t <= 0) {
@@ -191,10 +191,10 @@ export default defineCommand({
 				process.exit(1);
 				return;
 			}
-			config.llmTimeout = t;
+			config.llm.timeout = t;
 		}
 		if (args["llm-can-deny"] !== undefined)
-			config.llmCanDeny = args["llm-can-deny"];
+			config.llm.canDeny = args["llm-can-deny"];
 		if (args["verbose-log"] !== undefined)
 			config.verboseLog = args["verbose-log"];
 
@@ -218,10 +218,10 @@ export default defineCommand({
 			providers.push(new ChainedCommandsProvider(agent));
 		}
 		if (config.allowPromptChecks) {
-			if (config.llmProvider === "openrouter") {
-				providers.push(new OpenRouterProvider(agent, config, verbose));
+			if (config.llm.provider === "openrouter") {
+				providers.push(new OpenRouterProvider(agent, config.llm, verbose));
 			} else {
-				providers.push(new LlmProvider(agent, config, verbose));
+				providers.push(new LlmProvider(agent, config.llm, verbose));
 			}
 		}
 
@@ -284,8 +284,8 @@ export default defineCommand({
 
 		const llm: LlmLogEntry | undefined = config.verboseLog
 			? {
-					prompt: buildPrompt(req, agent, config.llmCanDeny),
-					model: config.llmModel,
+					prompt: buildPrompt(req, agent, config.llm.canDeny),
+					model: config.llm.model,
 				}
 			: undefined;
 

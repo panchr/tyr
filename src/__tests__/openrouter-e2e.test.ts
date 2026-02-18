@@ -45,15 +45,19 @@ async function writeTyrConfig(
 	overrides: Record<string, unknown> = {},
 ): Promise<void> {
 	const configPath = join(projectDir, "tyr-config.json");
+	const { llm: llmOverrides, ...rest } = overrides;
 	const config = {
 		allowChainedCommands: true,
 		allowPromptChecks: true,
 		cacheChecks: false,
 		failOpen: false,
-		llmProvider: "openrouter",
-		llmEndpoint: serverUrl,
-		llmModel: "anthropic/claude-3-haiku",
-		...overrides,
+		llm: {
+			provider: "openrouter",
+			endpoint: serverUrl,
+			model: "anthropic/claude-3-haiku",
+			...(llmOverrides as Record<string, unknown>),
+		},
+		...rest,
 	};
 	await writeFile(configPath, JSON.stringify(config), "utf-8");
 }
@@ -111,7 +115,7 @@ describe("OpenRouter provider E2E", () => {
 			);
 			try {
 				await writeTyrConfig(tempDir, server.url.toString(), {
-					llmCanDeny: true,
+					llm: { canDeny: true },
 				});
 
 				const req = makePermissionRequest({

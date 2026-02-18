@@ -49,7 +49,15 @@ const set = defineCommand({
 		}
 
 		const config = await readConfig();
-		(config as unknown as Record<string, unknown>)[key] = parsed;
+		const parts = key.split(".");
+		if (parts.length === 2) {
+			const [group, field] = parts;
+			(config as unknown as Record<string, Record<string, unknown>>)[
+				group as string
+			][field as string] = parsed;
+		} else {
+			(config as unknown as Record<string, unknown>)[key] = parsed;
+		}
 		await writeConfig(config);
 		console.log(`Set ${key} = ${String(parsed)}`);
 	},

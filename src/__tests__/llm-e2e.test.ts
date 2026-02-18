@@ -109,7 +109,7 @@ describe("LLM provider E2E", () => {
 				tempDir,
 				'{"decision": "deny", "reason": "dangerous command"}',
 			);
-			await writeTyrConfig(tempDir, { llmCanDeny: true });
+			await writeTyrConfig(tempDir, { llm: { canDeny: true } });
 
 			const req = makePermissionRequest({
 				cwd: tempDir,

@@ -22,9 +22,9 @@ export function computeConfigHash(
 		allowChainedCommands: config.allowChainedCommands,
 		allowPromptChecks: config.allowPromptChecks,
 		failOpen: config.failOpen,
-		llmProvider: config.llmProvider,
-		llmModel: config.llmModel,
-		llmCanDeny: config.llmCanDeny,
+		"llm.provider": config.llm.provider,
+		"llm.model": config.llm.model,
+		"llm.canDeny": config.llm.canDeny,
 	});
 	return createHash("sha256").update(data).digest("hex");
 }

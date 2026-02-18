@@ -1,10 +1,10 @@
 import type { ClaudeAgent } from "../agents/claude.ts";
 import { buildPrompt, parseLlmResponse } from "../prompts.ts";
 import type {
+	LlmConfig,
 	PermissionRequest,
 	Provider,
 	ProviderResult,
-	TyrConfig,
 } from "../types.ts";
 
 export { buildPrompt, parseLlmResponse };
@@ -22,12 +22,12 @@ export class LlmProvider implements Provider {
 
 	constructor(
 		private agent: ClaudeAgent,
-		config: Pick<TyrConfig, "llmModel" | "llmTimeout" | "llmCanDeny">,
+		config: Pick<LlmConfig, "model" | "timeout" | "canDeny">,
 		private verbose: boolean = false,
 	) {
-		this.model = config.llmModel;
-		this.timeoutMs = config.llmTimeout * S_TO_MS;
-		this.canDeny = config.llmCanDeny;
+		this.model = config.model;
+		this.timeoutMs = config.timeout * S_TO_MS;
+		this.canDeny = config.canDeny;
 	}
 
 	async checkPermission(req: PermissionRequest): Promise<ProviderResult> {

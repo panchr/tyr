@@ -1,10 +1,10 @@
 import type { ClaudeAgent } from "../agents/claude.ts";
 import { buildPrompt, parseLlmResponse } from "../prompts.ts";
 import type {
+	LlmConfig,
 	PermissionRequest,
 	Provider,
 	ProviderResult,
-	TyrConfig,
 } from "../types.ts";
 
 const S_TO_MS = 1000;
@@ -21,16 +21,13 @@ export class OpenRouterProvider implements Provider {
 
 	constructor(
 		private agent: ClaudeAgent,
-		config: Pick<
-			TyrConfig,
-			"llmModel" | "llmTimeout" | "llmCanDeny" | "llmEndpoint"
-		>,
+		config: Pick<LlmConfig, "model" | "timeout" | "canDeny" | "endpoint">,
 		private verbose: boolean = false,
 	) {
-		this.model = config.llmModel;
-		this.timeoutMs = config.llmTimeout * S_TO_MS;
-		this.canDeny = config.llmCanDeny;
-		this.endpoint = config.llmEndpoint;
+		this.model = config.model;
+		this.timeoutMs = config.timeout * S_TO_MS;
+		this.canDeny = config.canDeny;
+		this.endpoint = config.endpoint;
 	}
 
 	async checkPermission(req: PermissionRequest): Promise<ProviderResult> {

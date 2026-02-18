@@ -36,11 +36,11 @@ describe.concurrent("isValidKey", () => {
 		expect(isValidKey("failOpen")).toBe(true);
 		expect(isValidKey("allowPromptChecks")).toBe(true);
 		expect(isValidKey("cacheChecks")).toBe(true);
-		expect(isValidKey("llmProvider")).toBe(true);
-		expect(isValidKey("llmModel")).toBe(true);
-		expect(isValidKey("llmEndpoint")).toBe(true);
-		expect(isValidKey("llmTimeout")).toBe(true);
-		expect(isValidKey("llmCanDeny")).toBe(true);
+		expect(isValidKey("llm.provider")).toBe(true);
+		expect(isValidKey("llm.model")).toBe(true);
+		expect(isValidKey("llm.endpoint")).toBe(true);
+		expect(isValidKey("llm.timeout")).toBe(true);
+		expect(isValidKey("llm.canDeny")).toBe(true);
 	});
 
 	test("rejects invalid keys", () => {
@@ -64,20 +64,20 @@ describe.concurrent("parseValue", () => {
 	});
 
 	test("parses string values", () => {
-		expect(parseValue("llmProvider", "openrouter")).toBe("openrouter");
-		expect(parseValue("llmModel", "anthropic/claude-3.5-haiku")).toBe(
+		expect(parseValue("llm.provider", "openrouter")).toBe("openrouter");
+		expect(parseValue("llm.model", "anthropic/claude-3.5-haiku")).toBe(
 			"anthropic/claude-3.5-haiku",
 		);
 	});
 
 	test("parses number values", () => {
-		expect(parseValue("llmTimeout", "30")).toBe(30);
-		expect(parseValue("llmTimeout", "5.5")).toBe(5.5);
+		expect(parseValue("llm.timeout", "30")).toBe(30);
+		expect(parseValue("llm.timeout", "5.5")).toBe(5.5);
 	});
 
 	test("returns null for invalid number", () => {
-		expect(parseValue("llmTimeout", "abc")).toBeNull();
-		expect(parseValue("llmTimeout", "")).toBeNull();
+		expect(parseValue("llm.timeout", "abc")).toBeNull();
+		expect(parseValue("llm.timeout", "")).toBeNull();
 	});
 });
 
@@ -172,7 +172,8 @@ describe("readConfig", () => {
 		);
 		const config = await readConfig();
 		expect(config.failOpen).toBe(true);
-		expect(config.llmTimeout).toBe(30);
+		// Legacy flat key migrated to nested llm object
+		expect(config.llm.timeout).toBe(30);
 	});
 });
 
@@ -395,6 +396,20 @@ describe("tyr config CLI (integration)", () => {
 			const showResult = await runConfig("show");
 			const parsed = JSON.parse(showResult.stdout);
 			expect(parsed.failOpen).toBe(true);
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"config set updates nested llm key",
+		async () => {
+			const setResult = await runConfig("set", "llm.model", "sonnet");
+			expect(setResult.exitCode).toBe(0);
+			expect(setResult.stdout).toContain("Set llm.model = sonnet");
+
+			const showResult = await runConfig("show");
+			const parsed = JSON.parse(showResult.stdout);
+			expect(parsed.llm.model).toBe("sonnet");
 		},
 		{ timeout: 10_000 },
 	);

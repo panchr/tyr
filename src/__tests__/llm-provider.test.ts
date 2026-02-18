@@ -5,9 +5,9 @@ import { DEFAULT_TYR_CONFIG } from "../types.ts";
 import { makePermissionRequest } from "./helpers/index.ts";
 
 const llmConfig = {
-	llmModel: DEFAULT_TYR_CONFIG.llmModel,
-	llmTimeout: DEFAULT_TYR_CONFIG.llmTimeout,
-	llmCanDeny: DEFAULT_TYR_CONFIG.llmCanDeny,
+	model: DEFAULT_TYR_CONFIG.llm.model,
+	timeout: DEFAULT_TYR_CONFIG.llm.timeout,
+	canDeny: DEFAULT_TYR_CONFIG.llm.canDeny,
 };
 
 describe.concurrent("buildPrompt", () => {
@@ -186,9 +186,9 @@ describe("LlmProvider spawn", () => {
 		const { LlmProvider } = await import("../providers/llm.ts");
 		const agent = new ClaudeAgent();
 		const provider = new LlmProvider(agent, {
-			llmModel: "haiku",
-			llmTimeout: 1,
-			llmCanDeny: false,
+			model: "haiku",
+			timeout: 1,
+			canDeny: false,
 		});
 
 		const stdout = new ReadableStream({

@@ -42,19 +42,27 @@ function makeReq(
 	};
 }
 
-function makeConfig(overrides: Partial<TyrConfig> = {}): TyrConfig {
+function makeConfig(
+	overrides: Partial<Omit<TyrConfig, "llm">> & {
+		llm?: Partial<TyrConfig["llm"]>;
+	} = {},
+): TyrConfig {
+	const { llm: llmOverrides, ...rest } = overrides;
 	return {
 		allowChainedCommands: true,
 		allowPromptChecks: false,
 		cacheChecks: true,
 		failOpen: false,
-		llmProvider: "claude",
-		llmModel: "haiku",
-		llmEndpoint: "https://openrouter.ai/api/v1",
-		llmTimeout: 10,
-		llmCanDeny: false,
+		llm: {
+			provider: "claude",
+			model: "haiku",
+			endpoint: "https://openrouter.ai/api/v1",
+			timeout: 10,
+			canDeny: false,
+			...llmOverrides,
+		},
 		verboseLog: false,
-		...overrides,
+		...rest,
 	};
 }
 
@@ -70,22 +78,40 @@ describe("computeConfigHash", () => {
 
 	test("changes when config values change", () => {
 		const agent = new ClaudeAgent();
-		const hash1 = computeConfigHash(agent, makeConfig({ llmModel: "haiku" }));
-		const hash2 = computeConfigHash(agent, makeConfig({ llmModel: "sonnet" }));
+		const hash1 = computeConfigHash(
+			agent,
+			makeConfig({ llm: { model: "haiku" } }),
+		);
+		const hash2 = computeConfigHash(
+			agent,
+			makeConfig({ llm: { model: "sonnet" } }),
+		);
 		expect(hash1).not.toBe(hash2);
 	});
 
 	test("changes when llmCanDeny changes", () => {
 		const agent = new ClaudeAgent();
-		const hash1 = computeConfigHash(agent, makeConfig({ llmCanDeny: false }));
-		const hash2 = computeConfigHash(agent, makeConfig({ llmCanDeny: true }));
+		const hash1 = computeConfigHash(
+			agent,
+			makeConfig({ llm: { canDeny: false } }),
+		);
+		const hash2 = computeConfigHash(
+			agent,
+			makeConfig({ llm: { canDeny: true } }),
+		);
 		expect(hash1).not.toBe(hash2);
 	});
 
 	test("ignores fields not relevant to decisions", () => {
 		const agent = new ClaudeAgent();
-		const hash1 = computeConfigHash(agent, makeConfig({ llmTimeout: 10 }));
-		const hash2 = computeConfigHash(agent, makeConfig({ llmTimeout: 30 }));
+		const hash1 = computeConfigHash(
+			agent,
+			makeConfig({ llm: { timeout: 10 } }),
+		);
+		const hash2 = computeConfigHash(
+			agent,
+			makeConfig({ llm: { timeout: 30 } }),
+		);
 		// llmTimeout isn't in the hash — same hash
 		expect(hash1).toBe(hash2);
 	});

@@ -45,25 +45,32 @@ export interface Provider {
 
 // -- Tyr's own config --
 
+export const LlmConfigSchema = z.object({
+	/** LLM provider backend: 'claude' (local CLI) or 'openrouter' (API). */
+	provider: z.enum(["claude", "openrouter"]).default("claude"),
+	/** Model identifier passed to the LLM provider. */
+	model: z.string().default("haiku"),
+	/** API endpoint (only used when provider is 'openrouter'). */
+	endpoint: z.string().default("https://openrouter.ai/api/v1"),
+	/** LLM request timeout in seconds. */
+	timeout: z.number().default(10),
+	/** Whether the LLM provider can deny requests. When false, LLM can only allow or abstain. */
+	canDeny: z.boolean().default(false),
+});
+
+export type LlmConfig = z.infer<typeof LlmConfigSchema>;
+
 export const TyrConfigSchema = z.object({
 	/** Allow the chained-commands provider. */
 	allowChainedCommands: z.boolean().default(true),
 	/** Allow LLM-based permission checks. */
 	allowPromptChecks: z.boolean().default(false),
-	/** Cache provider results (Phase 3+). */
+	/** Cache provider results. */
 	cacheChecks: z.boolean().default(false),
 	/** If true, approve requests when tyr encounters an error. Default: false (fail-closed). */
 	failOpen: z.boolean().default(false),
-	/** LLM provider backend: 'claude' (local CLI) or 'openrouter' (API). */
-	llmProvider: z.enum(["claude", "openrouter"]).default("claude"),
-	/** Model identifier passed to the LLM provider. */
-	llmModel: z.string().default("haiku"),
-	/** API endpoint (only used when llmProvider is 'openrouter'). */
-	llmEndpoint: z.string().default("https://openrouter.ai/api/v1"),
-	/** LLM request timeout in seconds. */
-	llmTimeout: z.number().default(10),
-	/** Whether the LLM provider can deny requests. When false, LLM can only allow or abstain. */
-	llmCanDeny: z.boolean().default(false),
+	/** LLM provider configuration. */
+	llm: LlmConfigSchema.default(LlmConfigSchema.parse({})),
 	/** Include LLM prompt and parameters in log entries for debugging. */
 	verboseLog: z.boolean().default(false),
 });

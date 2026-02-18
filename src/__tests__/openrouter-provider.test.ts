@@ -5,10 +5,10 @@ import { DEFAULT_TYR_CONFIG } from "../types.ts";
 import { makePermissionRequest, saveEnv } from "./helpers/index.ts";
 
 const providerConfig = {
-	llmModel: "anthropic/claude-3-haiku",
-	llmTimeout: DEFAULT_TYR_CONFIG.llmTimeout,
-	llmCanDeny: DEFAULT_TYR_CONFIG.llmCanDeny,
-	llmEndpoint: DEFAULT_TYR_CONFIG.llmEndpoint,
+	model: "anthropic/claude-3-haiku",
+	timeout: DEFAULT_TYR_CONFIG.llm.timeout,
+	canDeny: DEFAULT_TYR_CONFIG.llm.canDeny,
+	endpoint: DEFAULT_TYR_CONFIG.llm.endpoint,
 };
 
 /** Build an OpenRouter-shaped JSON response. */
@@ -98,7 +98,7 @@ describe("OpenRouterProvider fetch", () => {
 
 		expect(fetchSpy).toHaveBeenCalledTimes(1);
 		const [url, opts] = fetchSpy.mock.calls[0] as [string, RequestInit];
-		expect(url).toBe(`${DEFAULT_TYR_CONFIG.llmEndpoint}/chat/completions`);
+		expect(url).toBe(`${DEFAULT_TYR_CONFIG.llm.endpoint}/chat/completions`);
 		expect(opts.method).toBe("POST");
 
 		const headers = opts.headers as Record<string, string>;
@@ -143,7 +143,7 @@ describe("OpenRouterProvider fetch", () => {
 		const agent = new ClaudeAgent();
 		const provider = new OpenRouterProvider(agent, {
 			...providerConfig,
-			llmCanDeny: false,
+			canDeny: false,
 		});
 
 		const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
@@ -168,7 +168,7 @@ describe("OpenRouterProvider fetch", () => {
 		const agent = new ClaudeAgent();
 		const provider = new OpenRouterProvider(agent, {
 			...providerConfig,
-			llmCanDeny: true,
+			canDeny: true,
 		});
 
 		const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
@@ -259,7 +259,7 @@ describe("OpenRouterProvider fetch", () => {
 		const agent = new ClaudeAgent();
 		const provider = new OpenRouterProvider(agent, {
 			...providerConfig,
-			llmTimeout: 0.001, // 1ms timeout
+			timeout: 0.001, // 1ms timeout
 		});
 
 		const fetchSpy = spyOn(globalThis, "fetch").mockRejectedValueOnce(
@@ -279,7 +279,7 @@ describe("OpenRouterProvider fetch", () => {
 		const customEndpoint = "https://custom.api.example.com/v1";
 		const provider = new OpenRouterProvider(agent, {
 			...providerConfig,
-			llmEndpoint: customEndpoint,
+			endpoint: customEndpoint,
 		});
 
 		const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(

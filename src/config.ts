@@ -96,13 +96,23 @@ export function writeEnvVar(key: string, value: string): void {
 	writeFileSync(envPath, content, "utf-8");
 }
 
-const VALID_KEYS = new Set<keyof TyrConfig>(
-	Object.keys(DEFAULT_TYR_CONFIG) as (keyof TyrConfig)[],
-);
+/** Map of all settable config key paths to their expected types. */
+const VALID_KEY_TYPES: Record<string, "boolean" | "string" | "number"> = {
+	allowChainedCommands: "boolean",
+	allowPromptChecks: "boolean",
+	cacheChecks: "boolean",
+	failOpen: "boolean",
+	verboseLog: "boolean",
+	"llm.provider": "string",
+	"llm.model": "string",
+	"llm.endpoint": "string",
+	"llm.timeout": "number",
+	"llm.canDeny": "boolean",
+};
 
-/** Check if a string is a valid TyrConfig key. */
-export function isValidKey(key: string): key is keyof TyrConfig {
-	return VALID_KEYS.has(key as keyof TyrConfig);
+/** Check if a string is a valid config key (supports dot notation for llm.*). */
+export function isValidKey(key: string): boolean {
+	return key in VALID_KEY_TYPES;
 }
 
 /** Strip // and /* comments from a JSON string, preserving strings. */
@@ -139,14 +149,43 @@ export function stripJsonComments(text: string): string {
 	return result;
 }
 
+/** Migrate flat llm* keys to the nested llm object for backward compatibility. */
+function migrateFlatLlmKeys(raw: Record<string, unknown>): void {
+	const mapping: Record<string, string> = {
+		llmProvider: "provider",
+		llmModel: "model",
+		llmEndpoint: "endpoint",
+		llmTimeout: "timeout",
+		llmCanDeny: "canDeny",
+	};
+	const llm = (raw.llm ?? {}) as Record<string, unknown>;
+	let migrated = false;
+	for (const [flat, nested] of Object.entries(mapping)) {
+		if (flat in raw) {
+			if (!(nested in llm)) {
+				llm[nested] = raw[flat];
+			}
+			delete raw[flat];
+			migrated = true;
+		}
+	}
+	if (migrated) {
+		raw.llm = llm;
+	}
+}
+
 /** Read tyr's config, returning defaults for missing or invalid files.
  *  Supports JSONC (JSON with Comments). Unknown keys are stripped;
- *  invalid values fall back to defaults. */
+ *  invalid values fall back to defaults.
+ *  Migrates legacy flat llm* keys to the nested llm object. */
 export async function readConfig(): Promise<TyrConfig> {
 	const path = getConfigPath();
 	try {
 		const text = await readFile(path, "utf-8");
 		const raw = JSON.parse(stripJsonComments(text));
+		if (typeof raw === "object" && raw !== null) {
+			migrateFlatLlmKeys(raw as Record<string, unknown>);
+		}
 		return TyrConfigSchema.parse(raw);
 	} catch {
 		return { ...DEFAULT_TYR_CONFIG };
@@ -160,12 +199,13 @@ export async function writeConfig(config: TyrConfig): Promise<void> {
 	await writeFile(path, `${JSON.stringify(config, null, 2)}\n`, "utf-8");
 }
 
-/** Parse a string value into the expected type for a config key. */
+/** Parse a string value into the expected type for a config key path. */
 export function parseValue(
-	key: keyof TyrConfig,
+	key: string,
 	value: string,
-): TyrConfig[keyof TyrConfig] | null {
-	const expected = typeof DEFAULT_TYR_CONFIG[key];
+): boolean | string | number | null {
+	const expected = VALID_KEY_TYPES[key];
+	if (!expected) return null;
 	if (expected === "boolean") {
 		if (value === "true") return true;
 		if (value === "false") return false;
