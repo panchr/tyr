@@ -1,7 +1,7 @@
 import type { ClaudeAgent } from "../agents/claude.ts";
 import { buildPrompt, parseLlmResponse } from "../prompts.ts";
 import type {
-	LlmConfig,
+	OpenRouterConfig,
 	PermissionRequest,
 	Provider,
 	ProviderResult,
@@ -21,7 +21,7 @@ export class OpenRouterProvider implements Provider {
 
 	constructor(
 		private agent: ClaudeAgent,
-		config: Pick<LlmConfig, "model" | "timeout" | "canDeny" | "endpoint">,
+		config: OpenRouterConfig,
 		private verbose: boolean = false,
 	) {
 		this.model = config.model;

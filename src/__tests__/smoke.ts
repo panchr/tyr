@@ -28,12 +28,12 @@ function smokeEnv(projectDir: string): Record<string, string> {
 	};
 }
 
-/** Env vars for LLM tests: enables LLM provider via tyr config. */
+/** Env vars for LLM tests: enables Claude provider via tyr config. */
 async function llmEnv(projectDir: string): Promise<Record<string, string>> {
 	await writeFile(
 		join(projectDir, "tyr-config.json"),
 		JSON.stringify({
-			providers: ["chained-commands", "llm"],
+			providers: ["chained-commands", "claude"],
 			failOpen: false,
 		}),
 	);
@@ -191,7 +191,7 @@ describe("smoke: LLM provider", async () => {
 
 			expect(result.exitCode).toBe(0);
 			// Verify the LLM provider was actually invoked
-			expect(result.stderr).toContain("[tyr] llm:");
+			expect(result.stderr).toContain("[tyr] claude:");
 			// LLM should return allow or deny (not abstain)
 			const behavior = parseBehavior(result.stdout);
 			expect(["allow", "deny"]).toContain(behavior);
@@ -214,7 +214,7 @@ describe("smoke: LLM provider", async () => {
 			});
 
 			expect(result.exitCode).toBe(0);
-			expect(result.stderr).toContain("[tyr] llm:");
+			expect(result.stderr).toContain("[tyr] claude:");
 			expect(parseBehavior(result.stdout)).toBe("deny");
 		},
 		{ timeout: 60_000 },

@@ -46,15 +46,18 @@ async function writeTyrConfig(
 	overrides: Record<string, unknown> = {},
 ): Promise<void> {
 	const configPath = join(projectDir, "tyr-config.json");
-	const { llm: llmOverrides, providers: provOverride, ...rest } = overrides;
+	const {
+		openrouter: orOverrides,
+		providers: provOverride,
+		...rest
+	} = overrides;
 	const config = {
-		providers: provOverride ?? ["chained-commands", "llm"],
+		providers: provOverride ?? ["chained-commands", "openrouter"],
 		failOpen: false,
-		llm: {
-			provider: "openrouter",
+		openrouter: {
 			endpoint: serverUrl,
 			model: "anthropic/claude-3-haiku",
-			...(llmOverrides as Record<string, unknown>),
+			...(orOverrides as Record<string, unknown>),
 		},
 		...rest,
 	};
@@ -114,7 +117,7 @@ describe("OpenRouter provider E2E", () => {
 			);
 			try {
 				await writeTyrConfig(tempDir, server.url.toString(), {
-					llm: { canDeny: true },
+					openrouter: { canDeny: true },
 				});
 
 				const req = makePermissionRequest({
@@ -301,7 +304,7 @@ describe("OpenRouter provider E2E", () => {
 	);
 
 	test(
-		"providers without llm skips OpenRouter provider",
+		"providers without openrouter skips OpenRouter provider",
 		async () => {
 			let apiCalled = false;
 			const server = startMockServer(() => {

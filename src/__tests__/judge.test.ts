@@ -312,12 +312,12 @@ describe.concurrent("tyr judge (integration)", () => {
 		"config override flags are accepted without error",
 		async () => {
 			const { exitCode } = await runJudge(JSON.stringify(VALID_REQUEST), [
-				"--llm-model",
+				"--claude-model",
 				"sonnet",
-				"--llm-timeout",
+				"--claude-timeout",
 				"30",
-				"--llm-provider",
-				"claude",
+				"--openrouter-model",
+				"anthropic/claude-3.5-haiku",
 			]);
 			expect(exitCode).toBe(0);
 		},
@@ -325,14 +325,27 @@ describe.concurrent("tyr judge (integration)", () => {
 	);
 
 	test(
-		"--llm-timeout rejects invalid values",
+		"--claude-timeout rejects invalid values",
 		async () => {
 			const { stderr, exitCode } = await runJudge(
 				JSON.stringify(VALID_REQUEST),
-				["--llm-timeout", "abc"],
+				["--claude-timeout", "abc"],
 			);
 			expect(exitCode).toBe(1);
-			expect(stderr).toContain("invalid --llm-timeout");
+			expect(stderr).toContain("invalid --claude-timeout");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--openrouter-timeout rejects invalid values",
+		async () => {
+			const { stderr, exitCode } = await runJudge(
+				JSON.stringify(VALID_REQUEST),
+				["--openrouter-timeout", "abc"],
+			);
+			expect(exitCode).toBe(1);
+			expect(stderr).toContain("invalid --openrouter-timeout");
 		},
 		{ timeout: 10_000 },
 	);

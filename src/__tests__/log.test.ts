@@ -381,7 +381,15 @@ describe("tyr judge logging (integration)", () => {
 			const dir = await setupTempDb();
 			const dbPath = join(dir, "tyr.db");
 			const proc = Bun.spawn(
-				["bun", "run", "src/index.ts", "judge", "--verbose-log"],
+				[
+					"bun",
+					"run",
+					"src/index.ts",
+					"judge",
+					"--verbose-log",
+					"--providers",
+					"chained-commands,claude",
+				],
 				{
 					cwd: `${import.meta.dir}/../..`,
 					stdout: "pipe",
@@ -391,6 +399,7 @@ describe("tyr judge logging (integration)", () => {
 						...process.env,
 						TYR_DB_PATH: dbPath,
 						CLAUDE_CONFIG_DIR: join(dir, "empty-config"),
+						TYR_CONFIG_FILE: join(dir, "tyr-config.json"),
 					},
 				},
 			);

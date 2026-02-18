@@ -108,14 +108,16 @@ const VALID_KEY_TYPES: Record<
 	failOpen: "boolean",
 	verboseLog: "boolean",
 	logRetention: "string",
-	"llm.provider": "string",
-	"llm.model": "string",
-	"llm.endpoint": "string",
-	"llm.timeout": "number",
-	"llm.canDeny": "boolean",
+	"claude.model": "string",
+	"claude.timeout": "number",
+	"claude.canDeny": "boolean",
+	"openrouter.model": "string",
+	"openrouter.endpoint": "string",
+	"openrouter.timeout": "number",
+	"openrouter.canDeny": "boolean",
 };
 
-/** Check if a string is a valid config key (supports dot notation for llm.*). */
+/** Check if a string is a valid config key (supports dot notation for claude.*, openrouter.*). */
 export function isValidKey(key: string): boolean {
 	return key in VALID_KEY_TYPES;
 }

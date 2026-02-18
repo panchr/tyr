@@ -59,7 +59,7 @@ async function writeTyrConfig(
 	const configPath = join(projectDir, "tyr-config.json");
 	const { providers: provOverride, ...rest } = overrides;
 	const config = {
-		providers: provOverride ?? ["chained-commands", "llm"],
+		providers: provOverride ?? ["chained-commands", "claude"],
 		failOpen: false,
 		...rest,
 	};
@@ -109,7 +109,7 @@ describe("LLM provider E2E", () => {
 				tempDir,
 				'{"decision": "deny", "reason": "dangerous command"}',
 			);
-			await writeTyrConfig(tempDir, { llm: { canDeny: true } });
+			await writeTyrConfig(tempDir, { claude: { canDeny: true } });
 
 			const req = makePermissionRequest({
 				cwd: tempDir,
@@ -262,7 +262,7 @@ describe("LLM provider E2E", () => {
 	);
 
 	test(
-		"providers without llm skips LLM provider",
+		"providers without claude skips Claude provider",
 		async () => {
 			const mockBin = await writeMockClaude(
 				tempDir,

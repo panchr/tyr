@@ -1,13 +1,13 @@
 import { describe, expect, mock, spyOn, test } from "bun:test";
 import { ClaudeAgent } from "../agents/claude.ts";
-import { buildPrompt, parseLlmResponse } from "../providers/llm.ts";
+import { buildPrompt, parseLlmResponse } from "../providers/claude.ts";
 import { DEFAULT_TYR_CONFIG } from "../types.ts";
 import { makePermissionRequest } from "./helpers/index.ts";
 
-const llmConfig = {
-	model: DEFAULT_TYR_CONFIG.llm.model,
-	timeout: DEFAULT_TYR_CONFIG.llm.timeout,
-	canDeny: DEFAULT_TYR_CONFIG.llm.canDeny,
+const claudeConfig = {
+	model: DEFAULT_TYR_CONFIG.claude.model,
+	timeout: DEFAULT_TYR_CONFIG.claude.timeout,
+	canDeny: DEFAULT_TYR_CONFIG.claude.canDeny,
 };
 
 describe.concurrent("buildPrompt", () => {
@@ -140,11 +140,11 @@ describe.concurrent("parseLlmResponse", () => {
 	});
 });
 
-describe.concurrent("LlmProvider", () => {
+describe.concurrent("ClaudeProvider", () => {
 	test("abstains for non-Bash tools", async () => {
-		const { LlmProvider } = await import("../providers/llm.ts");
+		const { ClaudeProvider } = await import("../providers/claude.ts");
 		const agent = new ClaudeAgent();
-		const provider = new LlmProvider(agent, llmConfig);
+		const provider = new ClaudeProvider(agent, claudeConfig);
 
 		const req = makePermissionRequest({
 			tool_name: "Read",
@@ -157,9 +157,9 @@ describe.concurrent("LlmProvider", () => {
 	});
 
 	test("abstains for empty command", async () => {
-		const { LlmProvider } = await import("../providers/llm.ts");
+		const { ClaudeProvider } = await import("../providers/claude.ts");
 		const agent = new ClaudeAgent();
-		const provider = new LlmProvider(agent, llmConfig);
+		const provider = new ClaudeProvider(agent, claudeConfig);
 
 		const req = makePermissionRequest({ command: "" });
 		const result = await provider.checkPermission(req);
@@ -168,9 +168,9 @@ describe.concurrent("LlmProvider", () => {
 	});
 
 	test("abstains for missing command", async () => {
-		const { LlmProvider } = await import("../providers/llm.ts");
+		const { ClaudeProvider } = await import("../providers/claude.ts");
 		const agent = new ClaudeAgent();
-		const provider = new LlmProvider(agent, llmConfig);
+		const provider = new ClaudeProvider(agent, claudeConfig);
 
 		const req = makePermissionRequest();
 		req.tool_input = {};
@@ -181,11 +181,11 @@ describe.concurrent("LlmProvider", () => {
 });
 
 // Not concurrent: spyOn(Bun, "spawn") mutates a global
-describe("LlmProvider spawn", () => {
+describe("ClaudeProvider spawn", () => {
 	test("uses Bun.spawn with array args (no shell interpolation)", async () => {
-		const { LlmProvider } = await import("../providers/llm.ts");
+		const { ClaudeProvider } = await import("../providers/claude.ts");
 		const agent = new ClaudeAgent();
-		const provider = new LlmProvider(agent, {
+		const provider = new ClaudeProvider(agent, {
 			model: "haiku",
 			timeout: 1,
 			canDeny: false,

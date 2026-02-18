@@ -34,11 +34,13 @@ describe.concurrent("isValidKey", () => {
 	test("accepts valid keys", () => {
 		expect(isValidKey("providers")).toBe(true);
 		expect(isValidKey("failOpen")).toBe(true);
-		expect(isValidKey("llm.provider")).toBe(true);
-		expect(isValidKey("llm.model")).toBe(true);
-		expect(isValidKey("llm.endpoint")).toBe(true);
-		expect(isValidKey("llm.timeout")).toBe(true);
-		expect(isValidKey("llm.canDeny")).toBe(true);
+		expect(isValidKey("claude.model")).toBe(true);
+		expect(isValidKey("claude.timeout")).toBe(true);
+		expect(isValidKey("claude.canDeny")).toBe(true);
+		expect(isValidKey("openrouter.model")).toBe(true);
+		expect(isValidKey("openrouter.endpoint")).toBe(true);
+		expect(isValidKey("openrouter.timeout")).toBe(true);
+		expect(isValidKey("openrouter.canDeny")).toBe(true);
 	});
 
 	test("rejects invalid keys", () => {
@@ -62,29 +64,30 @@ describe.concurrent("parseValue", () => {
 	});
 
 	test("parses string values", () => {
-		expect(parseValue("llm.provider", "openrouter")).toBe("openrouter");
-		expect(parseValue("llm.model", "anthropic/claude-3.5-haiku")).toBe(
+		expect(parseValue("claude.model", "sonnet")).toBe("sonnet");
+		expect(parseValue("openrouter.model", "anthropic/claude-3.5-haiku")).toBe(
 			"anthropic/claude-3.5-haiku",
 		);
 	});
 
 	test("parses number values", () => {
-		expect(parseValue("llm.timeout", "30")).toBe(30);
-		expect(parseValue("llm.timeout", "5.5")).toBe(5.5);
+		expect(parseValue("claude.timeout", "30")).toBe(30);
+		expect(parseValue("claude.timeout", "5.5")).toBe(5.5);
 	});
 
 	test("returns null for invalid number", () => {
-		expect(parseValue("llm.timeout", "abc")).toBeNull();
-		expect(parseValue("llm.timeout", "")).toBeNull();
+		expect(parseValue("claude.timeout", "abc")).toBeNull();
+		expect(parseValue("claude.timeout", "")).toBeNull();
 	});
 
 	test("parses providers list", () => {
-		expect(parseValue("providers", "cache,chained-commands,llm")).toEqual([
+		expect(parseValue("providers", "cache,chained-commands,claude")).toEqual([
 			"cache",
 			"chained-commands",
-			"llm",
+			"claude",
 		]);
-		expect(parseValue("providers", "llm")).toEqual(["llm"]);
+		expect(parseValue("providers", "claude")).toEqual(["claude"]);
+		expect(parseValue("providers", "openrouter")).toEqual(["openrouter"]);
 	});
 
 	test("returns null for invalid provider name", () => {
@@ -421,15 +424,15 @@ describe("tyr config CLI (integration)", () => {
 	);
 
 	test(
-		"config set updates nested llm key",
+		"config set updates nested claude key",
 		async () => {
-			const setResult = await runConfig("set", "llm.model", "sonnet");
+			const setResult = await runConfig("set", "claude.model", "sonnet");
 			expect(setResult.exitCode).toBe(0);
-			expect(setResult.stdout).toContain("Set llm.model = sonnet");
+			expect(setResult.stdout).toContain("Set claude.model = sonnet");
 
 			const showResult = await runConfig("show");
 			const parsed = JSON.parse(showResult.stdout);
-			expect(parsed.llm.model).toBe("sonnet");
+			expect(parsed.claude.model).toBe("sonnet");
 		},
 		{ timeout: 10_000 },
 	);

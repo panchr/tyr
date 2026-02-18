@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { ClaudeAgent } from "../agents/claude.ts";
-import { buildPrompt, parseLlmResponse } from "../providers/llm.ts";
+import { buildPrompt, parseLlmResponse } from "../providers/claude.ts";
 import { makePermissionRequest } from "./helpers/index.ts";
 
 /**

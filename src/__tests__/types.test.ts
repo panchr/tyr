@@ -107,9 +107,13 @@ describe.concurrent("TyrConfig", () => {
 		expect(DEFAULT_TYR_CONFIG).toEqual({
 			providers: ["chained-commands"],
 			failOpen: false,
-			llm: {
-				provider: "claude",
+			claude: {
 				model: "haiku",
+				timeout: 10,
+				canDeny: false,
+			},
+			openrouter: {
+				model: "anthropic/claude-3.5-haiku",
 				endpoint: "https://openrouter.ai/api/v1",
 				timeout: 10,
 				canDeny: false,
@@ -149,9 +153,9 @@ describe.concurrent("resolveProviders", () => {
 	test("returns providers from config", () => {
 		const config: TyrConfig = {
 			...DEFAULT_TYR_CONFIG,
-			providers: ["llm", "chained-commands"],
+			providers: ["claude", "chained-commands"],
 		};
-		expect(resolveProviders(config)).toEqual(["llm", "chained-commands"]);
+		expect(resolveProviders(config)).toEqual(["claude", "chained-commands"]);
 	});
 
 	test("returns default providers", () => {

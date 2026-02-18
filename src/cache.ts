@@ -22,9 +22,10 @@ export function computeConfigHash(
 		deny: [...info.deny].sort(),
 		providers: resolveProviders(config),
 		failOpen: config.failOpen,
-		"llm.provider": config.llm.provider,
-		"llm.model": config.llm.model,
-		"llm.canDeny": config.llm.canDeny,
+		"claude.model": config.claude.model,
+		"claude.canDeny": config.claude.canDeny,
+		"openrouter.model": config.openrouter.model,
+		"openrouter.canDeny": config.openrouter.canDeny,
 	});
 	return createHash("sha256").update(data).digest("hex");
 }

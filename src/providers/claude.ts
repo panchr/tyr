@@ -1,7 +1,7 @@
 import type { ClaudeAgent } from "../agents/claude.ts";
 import { buildPrompt, parseLlmResponse } from "../prompts.ts";
 import type {
-	LlmConfig,
+	ClaudeConfig,
 	PermissionRequest,
 	Provider,
 	ProviderResult,
@@ -13,8 +13,8 @@ const S_TO_MS = 1000;
 
 /** Provider that asks an LLM (via `claude -p`) to evaluate permission requests.
  *  Only handles Bash tool requests. Abstains for everything else. */
-export class LlmProvider implements Provider {
-	readonly name = "llm";
+export class ClaudeProvider implements Provider {
+	readonly name = "claude";
 
 	private timeoutMs: number;
 	private model: string;
@@ -22,7 +22,7 @@ export class LlmProvider implements Provider {
 
 	constructor(
 		private agent: ClaudeAgent,
-		config: Pick<LlmConfig, "model" | "timeout" | "canDeny">,
+		config: ClaudeConfig,
 		private verbose: boolean = false,
 	) {
 		this.model = config.model;
@@ -95,12 +95,12 @@ export class LlmProvider implements Provider {
 
 		if (this.verbose) {
 			console.error(
-				`[tyr] llm: exitCode=${result.exitCode} timedOut=${result.timedOut}`,
+				`[tyr] claude: exitCode=${result.exitCode} timedOut=${result.timedOut}`,
 			);
 			if (result.stdout)
-				console.error(`[tyr] llm stdout: ${result.stdout.trim()}`);
+				console.error(`[tyr] claude stdout: ${result.stdout.trim()}`);
 			if (result.stderr)
-				console.error(`[tyr] llm stderr: ${result.stderr.trim()}`);
+				console.error(`[tyr] claude stderr: ${result.stderr.trim()}`);
 		}
 
 		if (result.timedOut || result.exitCode !== 0) {

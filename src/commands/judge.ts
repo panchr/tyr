@@ -16,7 +16,7 @@ import { runPipeline } from "../pipeline.ts";
 import { buildPrompt } from "../prompts.ts";
 import { CacheProvider } from "../providers/cache.ts";
 import { ChainedCommandsProvider } from "../providers/chained-commands.ts";
-import { LlmProvider } from "../providers/llm.ts";
+import { ClaudeProvider } from "../providers/claude.ts";
 import { OpenRouterProvider } from "../providers/openrouter.ts";
 import type { HookResponse, Provider, TyrConfig } from "../types.ts";
 import { resolveProviders } from "../types.ts";
@@ -39,31 +39,39 @@ const judgeArgs = {
 	providers: {
 		type: "string" as const,
 		description:
-			"Override providers list (comma-separated: cache,chained-commands,llm)",
+			"Override providers list (comma-separated: cache,chained-commands,claude,openrouter)",
 	},
 	"fail-open": {
 		type: "boolean" as const,
 		description: "Override failOpen config",
 	},
-	"llm-provider": {
+	"claude-model": {
 		type: "string" as const,
-		description: "Override llmProvider config",
+		description: "Override claude.model config",
 	},
-	"llm-model": {
+	"claude-timeout": {
 		type: "string" as const,
-		description: "Override llmModel config",
+		description: "Override claude.timeout config (seconds)",
 	},
-	"llm-endpoint": {
-		type: "string" as const,
-		description: "Override llmEndpoint config",
-	},
-	"llm-timeout": {
-		type: "string" as const,
-		description: "Override llmTimeout config (seconds)",
-	},
-	"llm-can-deny": {
+	"claude-can-deny": {
 		type: "boolean" as const,
-		description: "Override llmCanDeny config",
+		description: "Override claude.canDeny config",
+	},
+	"openrouter-model": {
+		type: "string" as const,
+		description: "Override openrouter.model config",
+	},
+	"openrouter-endpoint": {
+		type: "string" as const,
+		description: "Override openrouter.endpoint config",
+	},
+	"openrouter-timeout": {
+		type: "string" as const,
+		description: "Override openrouter.timeout config (seconds)",
+	},
+	"openrouter-can-deny": {
+		type: "boolean" as const,
+		description: "Override openrouter.canDeny config",
 	},
 	"verbose-log": {
 		type: "boolean" as const,
@@ -183,31 +191,38 @@ export default defineCommand({
 			config.providers = parsed as TyrConfig["providers"];
 		}
 		if (args["fail-open"] !== undefined) config.failOpen = args["fail-open"];
-		if (args["llm-provider"] !== undefined) {
-			const p = args["llm-provider"];
-			if (p !== "claude" && p !== "openrouter") {
-				console.error(`[tyr] invalid --llm-provider value: ${p}`);
-				process.exit(1);
-				return;
-			}
-			config.llm.provider = p;
-		}
-		if (args["llm-model"] !== undefined) config.llm.model = args["llm-model"];
-		if (args["llm-endpoint"] !== undefined)
-			config.llm.endpoint = args["llm-endpoint"];
-		if (args["llm-timeout"] !== undefined) {
-			const t = Number(args["llm-timeout"]);
+		if (args["claude-model"] !== undefined)
+			config.claude.model = args["claude-model"];
+		if (args["claude-timeout"] !== undefined) {
+			const t = Number(args["claude-timeout"]);
 			if (!Number.isFinite(t) || t <= 0) {
 				console.error(
-					`[tyr] invalid --llm-timeout value: ${args["llm-timeout"]}`,
+					`[tyr] invalid --claude-timeout value: ${args["claude-timeout"]}`,
 				);
 				process.exit(1);
 				return;
 			}
-			config.llm.timeout = t;
+			config.claude.timeout = t;
 		}
-		if (args["llm-can-deny"] !== undefined)
-			config.llm.canDeny = args["llm-can-deny"];
+		if (args["claude-can-deny"] !== undefined)
+			config.claude.canDeny = args["claude-can-deny"];
+		if (args["openrouter-model"] !== undefined)
+			config.openrouter.model = args["openrouter-model"];
+		if (args["openrouter-endpoint"] !== undefined)
+			config.openrouter.endpoint = args["openrouter-endpoint"];
+		if (args["openrouter-timeout"] !== undefined) {
+			const t = Number(args["openrouter-timeout"]);
+			if (!Number.isFinite(t) || t <= 0) {
+				console.error(
+					`[tyr] invalid --openrouter-timeout value: ${args["openrouter-timeout"]}`,
+				);
+				process.exit(1);
+				return;
+			}
+			config.openrouter.timeout = t;
+		}
+		if (args["openrouter-can-deny"] !== undefined)
+			config.openrouter.canDeny = args["openrouter-can-deny"];
 		if (args["verbose-log"] !== undefined)
 			config.verboseLog = args["verbose-log"];
 
@@ -233,12 +248,13 @@ export default defineCommand({
 				case "chained-commands":
 					providers.push(new ChainedCommandsProvider(agent, verbose));
 					break;
-				case "llm":
-					if (config.llm.provider === "openrouter") {
-						providers.push(new OpenRouterProvider(agent, config.llm, verbose));
-					} else {
-						providers.push(new LlmProvider(agent, config.llm, verbose));
-					}
+				case "claude":
+					providers.push(new ClaudeProvider(agent, config.claude, verbose));
+					break;
+				case "openrouter":
+					providers.push(
+						new OpenRouterProvider(agent, config.openrouter, verbose),
+					);
 					break;
 			}
 		}
@@ -300,12 +316,38 @@ export default defineCommand({
 			mode: shadow ? "shadow" : undefined,
 		};
 
-		const llm: LlmLogEntry | undefined = config.verboseLog
-			? {
-					prompt: buildPrompt(req, agent, config.llm.canDeny),
-					model: config.llm.model,
+		let llm: LlmLogEntry | undefined;
+		if (config.verboseLog) {
+			if (result.provider === "claude") {
+				llm = {
+					prompt: buildPrompt(req, agent, config.claude.canDeny),
+					model: config.claude.model,
+				};
+			} else if (result.provider === "openrouter") {
+				llm = {
+					prompt: buildPrompt(req, agent, config.openrouter.canDeny),
+					model: config.openrouter.model,
+				};
+			} else {
+				// Decision came from a non-LLM provider; log the first LLM in the pipeline
+				for (const name of resolveProviders(config)) {
+					if (name === "claude") {
+						llm = {
+							prompt: buildPrompt(req, agent, config.claude.canDeny),
+							model: config.claude.model,
+						};
+						break;
+					}
+					if (name === "openrouter") {
+						llm = {
+							prompt: buildPrompt(req, agent, config.openrouter.canDeny),
+							model: config.openrouter.model,
+						};
+						break;
+					}
 				}
-			: undefined;
+			}
+		}
 
 		try {
 			appendLogEntry(entry, llm);

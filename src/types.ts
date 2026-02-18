@@ -45,23 +45,37 @@ export interface Provider {
 
 // -- Tyr's own config --
 
-export const LlmConfigSchema = z.object({
-	/** LLM provider backend: 'claude' (local CLI) or 'openrouter' (API). */
-	provider: z.enum(["claude", "openrouter"]).default("claude"),
-	/** Model identifier passed to the LLM provider. */
+export const ClaudeConfigSchema = z.object({
+	/** Model identifier passed to the Claude CLI. */
 	model: z.string().default("haiku"),
-	/** API endpoint (only used when provider is 'openrouter'). */
-	endpoint: z.string().default("https://openrouter.ai/api/v1"),
-	/** LLM request timeout in seconds. */
+	/** Request timeout in seconds. */
 	timeout: z.number().default(10),
-	/** Whether the LLM provider can deny requests. When false, LLM can only allow or abstain. */
+	/** Whether the provider can deny requests. When false, it can only allow or abstain. */
 	canDeny: z.boolean().default(false),
 });
 
-export type LlmConfig = z.infer<typeof LlmConfigSchema>;
+export type ClaudeConfig = z.infer<typeof ClaudeConfigSchema>;
+
+export const OpenRouterConfigSchema = z.object({
+	/** Model identifier passed to the OpenRouter API. */
+	model: z.string().default("anthropic/claude-3.5-haiku"),
+	/** OpenRouter API endpoint. */
+	endpoint: z.string().default("https://openrouter.ai/api/v1"),
+	/** Request timeout in seconds. */
+	timeout: z.number().default(10),
+	/** Whether the provider can deny requests. When false, it can only allow or abstain. */
+	canDeny: z.boolean().default(false),
+});
+
+export type OpenRouterConfig = z.infer<typeof OpenRouterConfigSchema>;
 
 /** Valid provider names for the pipeline. */
-export const PROVIDER_NAMES = ["cache", "chained-commands", "llm"] as const;
+export const PROVIDER_NAMES = [
+	"cache",
+	"chained-commands",
+	"claude",
+	"openrouter",
+] as const;
 export type ProviderName = (typeof PROVIDER_NAMES)[number];
 
 export const TyrConfigSchema = z.object({
@@ -69,8 +83,10 @@ export const TyrConfigSchema = z.object({
 	providers: z.array(z.enum(PROVIDER_NAMES)).default(["chained-commands"]),
 	/** If true, approve requests when tyr encounters an error. Default: false (fail-closed). */
 	failOpen: z.boolean().default(false),
-	/** LLM provider configuration. */
-	llm: LlmConfigSchema.default(LlmConfigSchema.parse({})),
+	/** Claude CLI provider configuration. */
+	claude: ClaudeConfigSchema.default(ClaudeConfigSchema.parse({})),
+	/** OpenRouter API provider configuration. */
+	openrouter: OpenRouterConfigSchema.default(OpenRouterConfigSchema.parse({})),
 	/** Include LLM prompt and parameters in log entries for debugging. */
 	verboseLog: z.boolean().default(false),
 	/** Maximum age of log entries. Entries older than this are pruned on the next tyr invocation.

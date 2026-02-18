@@ -6,9 +6,9 @@ import { makePermissionRequest, saveEnv } from "./helpers/index.ts";
 
 const providerConfig = {
 	model: "anthropic/claude-3-haiku",
-	timeout: DEFAULT_TYR_CONFIG.llm.timeout,
-	canDeny: DEFAULT_TYR_CONFIG.llm.canDeny,
-	endpoint: DEFAULT_TYR_CONFIG.llm.endpoint,
+	timeout: DEFAULT_TYR_CONFIG.openrouter.timeout,
+	canDeny: DEFAULT_TYR_CONFIG.openrouter.canDeny,
+	endpoint: DEFAULT_TYR_CONFIG.openrouter.endpoint,
 };
 
 /** Build an OpenRouter-shaped JSON response. */
@@ -98,7 +98,9 @@ describe("OpenRouterProvider fetch", () => {
 
 		expect(fetchSpy).toHaveBeenCalledTimes(1);
 		const [url, opts] = fetchSpy.mock.calls[0] as [string, RequestInit];
-		expect(url).toBe(`${DEFAULT_TYR_CONFIG.llm.endpoint}/chat/completions`);
+		expect(url).toBe(
+			`${DEFAULT_TYR_CONFIG.openrouter.endpoint}/chat/completions`,
+		);
 		expect(opts.method).toBe("POST");
 
 		const headers = opts.headers as Record<string, string>;

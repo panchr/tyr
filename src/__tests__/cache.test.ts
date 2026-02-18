@@ -43,21 +43,31 @@ function makeReq(
 }
 
 function makeConfig(
-	overrides: Partial<Omit<TyrConfig, "llm">> & {
-		llm?: Partial<TyrConfig["llm"]>;
+	overrides: Partial<Omit<TyrConfig, "claude" | "openrouter">> & {
+		claude?: Partial<TyrConfig["claude"]>;
+		openrouter?: Partial<TyrConfig["openrouter"]>;
 	} = {},
 ): TyrConfig {
-	const { llm: llmOverrides, ...rest } = overrides;
+	const {
+		claude: claudeOverrides,
+		openrouter: orOverrides,
+		...rest
+	} = overrides;
 	return {
 		providers: ["cache", "chained-commands"],
 		failOpen: false,
-		llm: {
-			provider: "claude",
+		claude: {
 			model: "haiku",
+			timeout: 10,
+			canDeny: false,
+			...claudeOverrides,
+		},
+		openrouter: {
+			model: "anthropic/claude-3.5-haiku",
 			endpoint: "https://openrouter.ai/api/v1",
 			timeout: 10,
 			canDeny: false,
-			...llmOverrides,
+			...orOverrides,
 		},
 		verboseLog: false,
 		logRetention: "30d",
@@ -79,24 +89,37 @@ describe("computeConfigHash", () => {
 		const agent = new ClaudeAgent();
 		const hash1 = computeConfigHash(
 			agent,
-			makeConfig({ llm: { model: "haiku" } }),
+			makeConfig({ claude: { model: "haiku" } }),
 		);
 		const hash2 = computeConfigHash(
 			agent,
-			makeConfig({ llm: { model: "sonnet" } }),
+			makeConfig({ claude: { model: "sonnet" } }),
 		);
 		expect(hash1).not.toBe(hash2);
 	});
 
-	test("changes when llmCanDeny changes", () => {
+	test("changes when canDeny changes", () => {
 		const agent = new ClaudeAgent();
 		const hash1 = computeConfigHash(
 			agent,
-			makeConfig({ llm: { canDeny: false } }),
+			makeConfig({ claude: { canDeny: false } }),
 		);
 		const hash2 = computeConfigHash(
 			agent,
-			makeConfig({ llm: { canDeny: true } }),
+			makeConfig({ claude: { canDeny: true } }),
+		);
+		expect(hash1).not.toBe(hash2);
+	});
+
+	test("changes when openrouter model changes", () => {
+		const agent = new ClaudeAgent();
+		const hash1 = computeConfigHash(
+			agent,
+			makeConfig({ openrouter: { model: "anthropic/claude-3-haiku" } }),
+		);
+		const hash2 = computeConfigHash(
+			agent,
+			makeConfig({ openrouter: { model: "anthropic/claude-3.5-sonnet" } }),
 		);
 		expect(hash1).not.toBe(hash2);
 	});
@@ -109,7 +132,7 @@ describe("computeConfigHash", () => {
 		);
 		const hash2 = computeConfigHash(
 			agent,
-			makeConfig({ providers: ["chained-commands", "llm"] }),
+			makeConfig({ providers: ["chained-commands", "claude"] }),
 		);
 		expect(hash1).not.toBe(hash2);
 	});
@@ -118,13 +141,12 @@ describe("computeConfigHash", () => {
 		const agent = new ClaudeAgent();
 		const hash1 = computeConfigHash(
 			agent,
-			makeConfig({ llm: { timeout: 10 } }),
+			makeConfig({ claude: { timeout: 10 } }),
 		);
 		const hash2 = computeConfigHash(
 			agent,
-			makeConfig({ llm: { timeout: 30 } }),
+			makeConfig({ claude: { timeout: 30 } }),
 		);
-		// llmTimeout isn't in the hash — same hash
 		expect(hash1).toBe(hash2);
 	});
 });
