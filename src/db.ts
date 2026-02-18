@@ -54,7 +54,7 @@ const SCHEMA_STATEMENTS = [
     reason      TEXT,
     config_hash TEXT    NOT NULL,
     created_at  INTEGER NOT NULL,
-    PRIMARY KEY (tool_name, tool_input, cwd)
+    PRIMARY KEY (tool_name, tool_input, cwd, config_hash)
 )`,
 ];
 

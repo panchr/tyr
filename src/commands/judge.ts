@@ -1,6 +1,7 @@
 import { defineCommand } from "citty";
 import { ClaudeAgent } from "../agents/claude.ts";
 import { rejectUnknownArgs } from "../args.ts";
+import { checkCache, computeConfigHash, writeCache } from "../cache.ts";
 import { readConfig } from "../config.ts";
 import { closeDb } from "../db.ts";
 import { parsePermissionRequest, readStdin } from "../judge.ts";
@@ -208,6 +209,75 @@ export default defineCommand({
 			if (verbose) console.error("[tyr] failed to init agent config:", err);
 		}
 
+		// Check cache before running providers
+		const configHash = config.cacheChecks
+			? computeConfigHash(agent, config)
+			: null;
+
+		if (configHash) {
+			let hit: ReturnType<typeof checkCache> = null;
+			try {
+				hit = checkCache(req, configHash);
+			} catch (err) {
+				if (verbose) console.error("[tyr] cache lookup failed:", err);
+			}
+			if (hit) {
+				if (verbose) {
+					console.error(
+						`[tyr] cache hit: decision=${hit.decision} provider=${hit.provider}`,
+					);
+				}
+
+				const duration = performance.now() - startTime;
+				const toolInput = extractToolInput(req.tool_name, req.tool_input);
+				const entry: LogEntry = {
+					timestamp: Date.now(),
+					cwd: req.cwd,
+					tool_name: req.tool_name,
+					tool_input: toolInput,
+					input: JSON.stringify(req.tool_input),
+					decision: hit.decision,
+					provider: hit.provider,
+					reason: hit.reason ?? undefined,
+					duration_ms: Math.round(duration),
+					session_id: req.session_id,
+					cached: 1,
+					mode: shadow ? "shadow" : undefined,
+				};
+
+				try {
+					appendLogEntry(entry);
+				} catch (err) {
+					if (verbose) console.error("[tyr] failed to write log:", err);
+				}
+
+				if (!shadow) {
+					const decision: HookResponse["hookSpecificOutput"]["decision"] = {
+						behavior: hit.decision,
+					};
+					if (hit.decision === "deny" && hit.reason) {
+						decision.message = hit.reason;
+					}
+					const response: HookResponse = {
+						hookSpecificOutput: {
+							hookEventName: "PermissionRequest",
+							decision,
+						},
+					};
+					console.log(JSON.stringify(response));
+				} else if (verbose) {
+					console.error(
+						`[tyr] shadow mode: suppressing cached decision=${hit.decision}`,
+					);
+				}
+
+				agent.close();
+				closeDb();
+				process.exit(0);
+				return;
+			}
+		}
+
 		const providers: Provider[] = [];
 		if (config.allowChainedCommands) {
 			providers.push(new ChainedCommandsProvider(agent));
@@ -237,6 +307,24 @@ export default defineCommand({
 			};
 			if (verbose) {
 				console.error("[tyr] failOpen=true, converting abstain to allow");
+			}
+		}
+
+		// Write definitive results to cache
+		if (
+			configHash &&
+			(result.decision === "allow" || result.decision === "deny")
+		) {
+			try {
+				writeCache(
+					req,
+					result.decision,
+					result.provider ?? "unknown",
+					result.reason,
+					configHash,
+				);
+			} catch (err) {
+				if (verbose) console.error("[tyr] failed to write cache:", err);
 			}
 		}
 
