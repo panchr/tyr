@@ -1,5 +1,18 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { parsePermissionRequest } from "../judge.ts";
+
+let tempDir: string;
+
+beforeEach(async () => {
+	tempDir = await mkdtemp(join(tmpdir(), "tyr-judge-test-"));
+});
+
+afterEach(async () => {
+	await rm(tempDir, { recursive: true, force: true });
+});
 
 const VALID_REQUEST = {
 	session_id: "abc123",
@@ -96,7 +109,7 @@ describe.concurrent("parsePermissionRequest", () => {
 	});
 });
 
-/** Run `tyr judge` as a subprocess, piping input to stdin. */
+/** Run `tyr judge` as a subprocess with isolated config. */
 async function runJudge(
 	stdin: string,
 	extraArgs: string[] = [],
@@ -108,7 +121,11 @@ async function runJudge(
 			stdout: "pipe",
 			stderr: "pipe",
 			stdin: new Response(stdin).body,
-			env: process.env,
+			env: {
+				...process.env,
+				CLAUDE_CONFIG_DIR: join(tempDir, "empty-config"),
+				TYR_CONFIG_FILE: join(tempDir, "tyr-config.json"),
+			},
 		},
 	);
 	const [stdout, stderr] = await Promise.all([

@@ -176,7 +176,11 @@ describe("tyr judge logging (integration)", () => {
 				stdout: "pipe",
 				stderr: "pipe",
 				stdin: new Response(JSON.stringify(VALID_REQUEST)).body,
-				env: { ...process.env, TYR_DB_PATH: dbPath },
+				env: {
+					...process.env,
+					TYR_DB_PATH: dbPath,
+					CLAUDE_CONFIG_DIR: join(dir, "empty-config"),
+				},
 			});
 			await proc.exited;
 
@@ -202,7 +206,11 @@ describe("tyr judge logging (integration)", () => {
 					stdout: "pipe",
 					stderr: "pipe",
 					stdin: new Response(JSON.stringify(VALID_REQUEST)).body,
-					env: { ...process.env, TYR_DB_PATH: dbPath },
+					env: {
+						...process.env,
+						TYR_DB_PATH: dbPath,
+						CLAUDE_CONFIG_DIR: join(dir, "empty-config"),
+					},
 				},
 			);
 			await proc.exited;
@@ -227,7 +235,11 @@ describe("tyr judge logging (integration)", () => {
 					stdout: "pipe",
 					stderr: "pipe",
 					stdin: new Response(JSON.stringify(VALID_REQUEST)).body,
-					env: { ...process.env, TYR_DB_PATH: dbPath },
+					env: {
+						...process.env,
+						TYR_DB_PATH: dbPath,
+						CLAUDE_CONFIG_DIR: join(dir, "empty-config"),
+					},
 				},
 			);
 			await proc.exited;
@@ -253,7 +265,11 @@ describe("tyr judge logging (integration)", () => {
 					stdout: "pipe",
 					stderr: "pipe",
 					stdin: new Response(JSON.stringify(VALID_REQUEST)).body,
-					env: { ...process.env, TYR_DB_PATH: dbPath },
+					env: {
+						...process.env,
+						TYR_DB_PATH: dbPath,
+						CLAUDE_CONFIG_DIR: join(dir, "empty-config"),
+					},
 				},
 			);
 			expect(await proc.exited).toBe(0);

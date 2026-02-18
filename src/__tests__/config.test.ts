@@ -363,6 +363,7 @@ describe("tyr config CLI (integration)", () => {
 			env: {
 				...process.env,
 				TYR_CONFIG_FILE: join(tempDir, "config.json"),
+				CLAUDE_CONFIG_DIR: join(tempDir, "empty-config"),
 			},
 		});
 		const [stdout, stderr] = await Promise.all([

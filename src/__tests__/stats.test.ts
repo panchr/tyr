@@ -11,6 +11,17 @@ const restoreDbEnv = saveEnv("TYR_DB_PATH");
 
 let tempDir: string;
 
+/** Env vars that prevent tests from using production config. */
+function isolatedEnv(
+	extras: Record<string, string> = {},
+): Record<string, string> {
+	return {
+		CLAUDE_CONFIG_DIR: join(tempDir, "empty-config"),
+		TYR_CONFIG_FILE: join(tempDir, "tyr-config.json"),
+		...extras,
+	};
+}
+
 afterEach(async () => {
 	resetDbInstance();
 	restoreDbEnv();
@@ -48,7 +59,7 @@ describe("tyr stats", () => {
 		async () => {
 			const dbPath = await setupTempDb();
 			const result = await runCli("stats", [], {
-				env: { TYR_DB_PATH: dbPath },
+				env: isolatedEnv({ TYR_DB_PATH: dbPath }),
 			});
 			expect(result.exitCode).toBe(0);
 			expect(result.stdout).toContain("Total checks: 0");
@@ -61,7 +72,7 @@ describe("tyr stats", () => {
 		async () => {
 			const dbPath = await setupTempDb();
 			const result = await runCli("stats", ["--json"], {
-				env: { TYR_DB_PATH: dbPath },
+				env: isolatedEnv({ TYR_DB_PATH: dbPath }),
 			});
 			expect(result.exitCode).toBe(0);
 			const stats = JSON.parse(result.stdout.trim());
@@ -98,7 +109,7 @@ describe("tyr stats", () => {
 			resetDbInstance();
 
 			const result = await runCli("stats", ["--json"], {
-				env: { TYR_DB_PATH: dbPath },
+				env: isolatedEnv({ TYR_DB_PATH: dbPath }),
 			});
 			expect(result.exitCode).toBe(0);
 			const stats = JSON.parse(result.stdout.trim());
@@ -148,7 +159,7 @@ describe("tyr stats", () => {
 			resetDbInstance();
 
 			const result = await runCli("stats", ["--json", "--since", "1h"], {
-				env: { TYR_DB_PATH: dbPath },
+				env: isolatedEnv({ TYR_DB_PATH: dbPath }),
 			});
 			expect(result.exitCode).toBe(0);
 			const stats = JSON.parse(result.stdout.trim());
@@ -171,7 +182,7 @@ describe("tyr stats", () => {
 			resetDbInstance();
 
 			const result = await runCli("stats", [], {
-				env: { TYR_DB_PATH: dbPath },
+				env: isolatedEnv({ TYR_DB_PATH: dbPath }),
 			});
 			expect(result.exitCode).toBe(0);
 			expect(result.stdout).toContain("Permission Check Statistics");
@@ -189,7 +200,7 @@ describe("tyr stats", () => {
 		async () => {
 			const dbPath = await setupTempDb();
 			const result = await runCli("stats", ["--since", "bogus"], {
-				env: { TYR_DB_PATH: dbPath },
+				env: isolatedEnv({ TYR_DB_PATH: dbPath }),
 			});
 			expect(result.exitCode).toBe(1);
 			expect(result.stderr).toContain("Invalid --since");

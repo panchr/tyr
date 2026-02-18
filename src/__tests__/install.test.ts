@@ -230,6 +230,8 @@ describe("tyr install (integration)", () => {
 			env: {
 				...process.env,
 				HOME: tempDir,
+				CLAUDE_CONFIG_DIR: join(tempDir, ".claude"),
+				TYR_CONFIG_FILE: join(tempDir, "tyr-config.json"),
 			},
 		});
 		const [stdout, stderr] = await Promise.all([
@@ -503,6 +505,8 @@ describe("tyr uninstall (integration)", () => {
 			env: {
 				...process.env,
 				HOME: tempDir,
+				CLAUDE_CONFIG_DIR: join(tempDir, ".claude"),
+				TYR_CONFIG_FILE: join(tempDir, "tyr-config.json"),
 			},
 		});
 		const [stdout, stderr] = await Promise.all([

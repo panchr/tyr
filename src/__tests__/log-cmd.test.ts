@@ -41,6 +41,8 @@ async function runLog(
 		env: {
 			...process.env,
 			TYR_DB_PATH: dbPath,
+			CLAUDE_CONFIG_DIR: join(tempDir, "empty-config"),
+			TYR_CONFIG_FILE: join(tempDir, "tyr-config.json"),
 		},
 	});
 	const [stdout, stderr] = await Promise.all([

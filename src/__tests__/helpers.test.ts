@@ -1,4 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { VERSION } from "../version.ts";
 import {
 	MALFORMED_REQUEST,
@@ -8,6 +11,24 @@ import {
 	runCli,
 	runJudge,
 } from "./helpers/index.ts";
+
+let tempDir: string;
+
+/** Env vars that prevent tests from using production config. */
+function isolatedEnv(): Record<string, string> {
+	return {
+		CLAUDE_CONFIG_DIR: join(tempDir, "empty-config"),
+		TYR_CONFIG_FILE: join(tempDir, "tyr-config.json"),
+	};
+}
+
+beforeEach(async () => {
+	tempDir = await mkdtemp(join(tmpdir(), "tyr-helpers-test-"));
+});
+
+afterEach(async () => {
+	await rm(tempDir, { recursive: true, force: true });
+});
 
 describe.concurrent("fixtures", () => {
 	test("makePermissionRequest creates valid request", () => {
@@ -46,7 +67,9 @@ describe.concurrent("subprocess helpers", () => {
 		"runJudge captures stdout, stderr, and exit code on valid input",
 		async () => {
 			const req = makePermissionRequest();
-			const result = await runJudge(JSON.stringify(req));
+			const result = await runJudge(JSON.stringify(req), {
+				env: isolatedEnv(),
+			});
 			expect(result.exitCode).toBe(0);
 			expect(typeof result.stdout).toBe("string");
 			expect(typeof result.stderr).toBe("string");
@@ -57,7 +80,7 @@ describe.concurrent("subprocess helpers", () => {
 	test(
 		"runJudge captures non-zero exit on bad input",
 		async () => {
-			const result = await runJudge("not json");
+			const result = await runJudge("not json", { env: isolatedEnv() });
 			expect(result.exitCode).toBe(2);
 		},
 		{ timeout: 10_000 },
@@ -69,6 +92,7 @@ describe.concurrent("subprocess helpers", () => {
 			const req = makePermissionRequest();
 			const result = await runJudge(JSON.stringify(req), {
 				args: ["--verbose"],
+				env: isolatedEnv(),
 			});
 			expect(result.exitCode).toBe(0);
 			expect(result.stderr).toContain("[tyr]");
@@ -79,7 +103,7 @@ describe.concurrent("subprocess helpers", () => {
 	test(
 		"runCli runs arbitrary subcommands",
 		async () => {
-			const result = await runCli("--version");
+			const result = await runCli("--version", [], { env: isolatedEnv() });
 			expect(result.exitCode).toBe(0);
 			expect(result.stdout.trim()).toContain(VERSION);
 		},
