@@ -5,6 +5,7 @@ import {
 	type PermissionRequest,
 	type PermissionResult,
 	type Provider,
+	resolveProviders,
 	type TyrConfig,
 } from "../types.ts";
 
@@ -125,5 +126,52 @@ describe.concurrent("TyrConfig", () => {
 		};
 		expect(custom.failOpen).toBe(true);
 		expect(custom.allowChainedCommands).toBe(true);
+	});
+});
+
+describe.concurrent("resolveProviders", () => {
+	test("uses explicit providers array when set", () => {
+		const config: TyrConfig = {
+			...DEFAULT_TYR_CONFIG,
+			providers: ["llm", "chained-commands"],
+		};
+		expect(resolveProviders(config)).toEqual(["llm", "chained-commands"]);
+	});
+
+	test("derives from boolean flags when providers is undefined", () => {
+		expect(resolveProviders(DEFAULT_TYR_CONFIG)).toEqual(["chained-commands"]);
+	});
+
+	test("includes all providers when all flags are true", () => {
+		const config: TyrConfig = {
+			...DEFAULT_TYR_CONFIG,
+			cacheChecks: true,
+			allowChainedCommands: true,
+			allowPromptChecks: true,
+		};
+		expect(resolveProviders(config)).toEqual([
+			"cache",
+			"chained-commands",
+			"llm",
+		]);
+	});
+
+	test("returns empty array when all flags are false", () => {
+		const config: TyrConfig = {
+			...DEFAULT_TYR_CONFIG,
+			allowChainedCommands: false,
+		};
+		expect(resolveProviders(config)).toEqual([]);
+	});
+
+	test("explicit providers ignores boolean flags", () => {
+		const config: TyrConfig = {
+			...DEFAULT_TYR_CONFIG,
+			providers: ["llm"],
+			allowChainedCommands: true,
+			allowPromptChecks: false,
+			cacheChecks: true,
+		};
+		expect(resolveProviders(config)).toEqual(["llm"]);
 	});
 });

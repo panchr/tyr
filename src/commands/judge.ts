@@ -2,7 +2,7 @@ import { defineCommand } from "citty";
 import { ClaudeAgent } from "../agents/claude.ts";
 import { rejectUnknownArgs } from "../args.ts";
 import { computeConfigHash } from "../cache.ts";
-import { loadEnvFile, readConfig } from "../config.ts";
+import { loadEnvFile, parseValue, readConfig } from "../config.ts";
 import { closeDb } from "../db.ts";
 import { parsePermissionRequest, readStdin } from "../judge.ts";
 import {
@@ -17,7 +17,8 @@ import { CacheProvider } from "../providers/cache.ts";
 import { ChainedCommandsProvider } from "../providers/chained-commands.ts";
 import { LlmProvider } from "../providers/llm.ts";
 import { OpenRouterProvider } from "../providers/openrouter.ts";
-import type { HookResponse, Provider } from "../types.ts";
+import type { HookResponse, Provider, TyrConfig } from "../types.ts";
+import { resolveProviders } from "../types.ts";
 
 const judgeArgs = {
 	verbose: {
@@ -45,6 +46,11 @@ const judgeArgs = {
 	"cache-checks": {
 		type: "boolean" as const,
 		description: "Override cacheChecks config",
+	},
+	providers: {
+		type: "string" as const,
+		description:
+			"Override providers list (comma-separated: cache,chained-commands,llm)",
 	},
 	"fail-open": {
 		type: "boolean" as const,
@@ -169,6 +175,15 @@ export default defineCommand({
 			config.allowPromptChecks = args["allow-prompt-checks"];
 		if (args["cache-checks"] !== undefined)
 			config.cacheChecks = args["cache-checks"];
+		if (args.providers !== undefined) {
+			const parsed = parseValue("providers", args.providers);
+			if (!parsed) {
+				console.error(`[tyr] invalid --providers value: ${args.providers}`);
+				process.exit(1);
+				return;
+			}
+			config.providers = parsed as TyrConfig["providers"];
+		}
 		if (args["fail-open"] !== undefined) config.failOpen = args["fail-open"];
 		if (args["llm-provider"] !== undefined) {
 			const p = args["llm-provider"];
@@ -205,23 +220,28 @@ export default defineCommand({
 			if (verbose) console.error("[tyr] failed to init agent config:", err);
 		}
 
-		// Build provider pipeline: cache → chained-commands → llm
+		// Build provider pipeline from config
 		const providers: Provider[] = [];
 		let cacheProvider: CacheProvider | null = null;
 
-		if (config.cacheChecks) {
-			const configHash = computeConfigHash(agent, config);
-			cacheProvider = new CacheProvider(configHash);
-			providers.push(cacheProvider);
-		}
-		if (config.allowChainedCommands) {
-			providers.push(new ChainedCommandsProvider(agent));
-		}
-		if (config.allowPromptChecks) {
-			if (config.llm.provider === "openrouter") {
-				providers.push(new OpenRouterProvider(agent, config.llm, verbose));
-			} else {
-				providers.push(new LlmProvider(agent, config.llm, verbose));
+		for (const name of resolveProviders(config)) {
+			switch (name) {
+				case "cache": {
+					const configHash = computeConfigHash(agent, config);
+					cacheProvider = new CacheProvider(configHash);
+					providers.push(cacheProvider);
+					break;
+				}
+				case "chained-commands":
+					providers.push(new ChainedCommandsProvider(agent));
+					break;
+				case "llm":
+					if (config.llm.provider === "openrouter") {
+						providers.push(new OpenRouterProvider(agent, config.llm, verbose));
+					} else {
+						providers.push(new LlmProvider(agent, config.llm, verbose));
+					}
+					break;
 			}
 		}
 

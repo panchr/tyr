@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
 	DEFAULT_TYR_CONFIG,
+	PROVIDER_NAMES,
 	type TyrConfig,
 	TyrConfigSchema,
 } from "./types.ts";
@@ -97,7 +98,11 @@ export function writeEnvVar(key: string, value: string): void {
 }
 
 /** Map of all settable config key paths to their expected types. */
-const VALID_KEY_TYPES: Record<string, "boolean" | "string" | "number"> = {
+const VALID_KEY_TYPES: Record<
+	string,
+	"boolean" | "string" | "number" | "providers"
+> = {
+	providers: "providers",
 	allowChainedCommands: "boolean",
 	allowPromptChecks: "boolean",
 	cacheChecks: "boolean",
@@ -203,7 +208,7 @@ export async function writeConfig(config: TyrConfig): Promise<void> {
 export function parseValue(
 	key: string,
 	value: string,
-): boolean | string | number | null {
+): boolean | string | number | string[] | null {
 	const expected = VALID_KEY_TYPES[key];
 	if (!expected) return null;
 	if (expected === "boolean") {
@@ -219,6 +224,18 @@ export function parseValue(
 		const num = Number(value);
 		if (Number.isFinite(num)) return num;
 		return null;
+	}
+	if (expected === "providers") {
+		const valid = new Set<string>(PROVIDER_NAMES);
+		const names = value
+			.split(",")
+			.map((s) => s.trim())
+			.filter(Boolean);
+		if (names.length === 0) return null;
+		for (const n of names) {
+			if (!valid.has(n)) return null;
+		}
+		return names;
 	}
 	return null;
 }

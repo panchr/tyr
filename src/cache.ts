@@ -3,6 +3,7 @@ import type { ClaudeAgent } from "./agents/claude.ts";
 import { getDb } from "./db.ts";
 import { extractToolInput } from "./log.ts";
 import type { PermissionRequest, TyrConfig } from "./types.ts";
+import { resolveProviders } from "./types.ts";
 
 interface CacheHit {
 	decision: "allow" | "deny";
@@ -19,8 +20,7 @@ export function computeConfigHash(
 	const data = JSON.stringify({
 		allow: [...info.allow].sort(),
 		deny: [...info.deny].sort(),
-		allowChainedCommands: config.allowChainedCommands,
-		allowPromptChecks: config.allowPromptChecks,
+		providers: resolveProviders(config),
 		failOpen: config.failOpen,
 		"llm.provider": config.llm.provider,
 		"llm.model": config.llm.model,

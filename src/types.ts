@@ -60,12 +60,18 @@ export const LlmConfigSchema = z.object({
 
 export type LlmConfig = z.infer<typeof LlmConfigSchema>;
 
+/** Valid provider names for the pipeline. */
+export const PROVIDER_NAMES = ["cache", "chained-commands", "llm"] as const;
+export type ProviderName = (typeof PROVIDER_NAMES)[number];
+
 export const TyrConfigSchema = z.object({
-	/** Allow the chained-commands provider. */
+	/** Ordered list of providers to run. When set, boolean flags are ignored. */
+	providers: z.array(z.enum(PROVIDER_NAMES)).optional(),
+	/** Allow the chained-commands provider. @deprecated Use `providers` instead. */
 	allowChainedCommands: z.boolean().default(true),
-	/** Allow LLM-based permission checks. */
+	/** Allow LLM-based permission checks. @deprecated Use `providers` instead. */
 	allowPromptChecks: z.boolean().default(false),
-	/** Cache provider results. */
+	/** Cache provider results. @deprecated Use `providers` instead. */
 	cacheChecks: z.boolean().default(false),
 	/** If true, approve requests when tyr encounters an error. Default: false (fail-closed). */
 	failOpen: z.boolean().default(false),
@@ -78,3 +84,15 @@ export const TyrConfigSchema = z.object({
 export type TyrConfig = z.infer<typeof TyrConfigSchema>;
 
 export const DEFAULT_TYR_CONFIG: TyrConfig = TyrConfigSchema.parse({});
+
+/** Resolve the effective ordered provider list from config.
+ *  If `providers` is explicitly set, use it directly.
+ *  Otherwise, derive from the legacy boolean flags. */
+export function resolveProviders(config: TyrConfig): ProviderName[] {
+	if (config.providers) return config.providers;
+	const result: ProviderName[] = [];
+	if (config.cacheChecks) result.push("cache");
+	if (config.allowChainedCommands) result.push("chained-commands");
+	if (config.allowPromptChecks) result.push("llm");
+	return result;
+}

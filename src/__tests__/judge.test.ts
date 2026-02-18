@@ -336,4 +336,29 @@ describe.concurrent("tyr judge (integration)", () => {
 		},
 		{ timeout: 10_000 },
 	);
+
+	test(
+		"--providers overrides pipeline order",
+		async () => {
+			const { exitCode } = await runJudge(JSON.stringify(VALID_REQUEST), [
+				"--providers",
+				"chained-commands",
+			]);
+			expect(exitCode).toBe(0);
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--providers rejects invalid names",
+		async () => {
+			const { stderr, exitCode } = await runJudge(
+				JSON.stringify(VALID_REQUEST),
+				["--providers", "invalid"],
+			);
+			expect(exitCode).toBe(1);
+			expect(stderr).toContain("invalid --providers");
+		},
+		{ timeout: 10_000 },
+	);
 });

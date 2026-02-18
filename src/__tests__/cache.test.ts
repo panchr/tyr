@@ -102,6 +102,19 @@ describe("computeConfigHash", () => {
 		expect(hash1).not.toBe(hash2);
 	});
 
+	test("changes when providers list changes", () => {
+		const agent = new ClaudeAgent();
+		const hash1 = computeConfigHash(
+			agent,
+			makeConfig({ providers: ["chained-commands"] }),
+		);
+		const hash2 = computeConfigHash(
+			agent,
+			makeConfig({ providers: ["chained-commands", "llm"] }),
+		);
+		expect(hash1).not.toBe(hash2);
+	});
+
 	test("ignores fields not relevant to decisions", () => {
 		const agent = new ClaudeAgent();
 		const hash1 = computeConfigHash(

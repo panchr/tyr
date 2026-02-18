@@ -32,6 +32,7 @@ describe("getConfigPath", () => {
 
 describe.concurrent("isValidKey", () => {
 	test("accepts valid keys", () => {
+		expect(isValidKey("providers")).toBe(true);
 		expect(isValidKey("allowChainedCommands")).toBe(true);
 		expect(isValidKey("failOpen")).toBe(true);
 		expect(isValidKey("allowPromptChecks")).toBe(true);
@@ -78,6 +79,23 @@ describe.concurrent("parseValue", () => {
 	test("returns null for invalid number", () => {
 		expect(parseValue("llm.timeout", "abc")).toBeNull();
 		expect(parseValue("llm.timeout", "")).toBeNull();
+	});
+
+	test("parses providers list", () => {
+		expect(parseValue("providers", "cache,chained-commands,llm")).toEqual([
+			"cache",
+			"chained-commands",
+			"llm",
+		]);
+		expect(parseValue("providers", "llm")).toEqual(["llm"]);
+	});
+
+	test("returns null for invalid provider name", () => {
+		expect(parseValue("providers", "invalid")).toBeNull();
+	});
+
+	test("returns null for empty providers", () => {
+		expect(parseValue("providers", "")).toBeNull();
 	});
 });
 
