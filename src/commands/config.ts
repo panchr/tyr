@@ -62,9 +62,10 @@ const set = defineCommand({
 		const parts = key.split(".");
 		if (parts.length === 2) {
 			const [group, field] = parts;
-			(config as unknown as Record<string, Record<string, unknown>>)[
-				group as string
-			][field as string] = parsed;
+			const obj = config as unknown as Record<string, Record<string, unknown>>;
+			const groupKey = group as string;
+			if (!obj[groupKey]) obj[groupKey] = {};
+			obj[groupKey][field as string] = parsed;
 		} else {
 			(config as unknown as Record<string, unknown>)[key] = parsed;
 		}

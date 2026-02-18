@@ -100,9 +100,10 @@ describe("log (SQLite)", () => {
 		expect(entries).toHaveLength(1);
 
 		const db = getDb();
+		const logId = entries[0]?.id as number;
 		const llmRow = db
 			.query("SELECT * FROM llm_logs WHERE log_id = ?")
-			.get(entries[0]?.id) as { prompt: string; model: string } | null;
+			.get(logId) as { prompt: string; model: string } | null;
 		expect(llmRow).not.toBeNull();
 		expect(llmRow?.prompt).toBe("Is this safe?");
 		expect(llmRow?.model).toBe("haiku");
@@ -306,9 +307,10 @@ describe("tyr judge logging (integration)", () => {
 			expect(entries).toHaveLength(1);
 
 			const db = getDb();
+			const logId = entries[0]?.id as number;
 			const llmRow = db
 				.query("SELECT * FROM llm_logs WHERE log_id = ?")
-				.get(entries[0]?.id) as { prompt: string; model: string } | null;
+				.get(logId) as { prompt: string; model: string } | null;
 			expect(llmRow).not.toBeNull();
 			expect(llmRow?.prompt).toContain("permission checker");
 			expect(llmRow?.model).toBe("haiku");

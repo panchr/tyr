@@ -78,7 +78,9 @@ export function writeEnvVar(key: string, value: string): void {
 	const prefix = `${key}=`;
 	let found = false;
 	for (let i = 0; i < lines.length; i++) {
-		const trimmed = lines[i].trim();
+		const line = lines[i];
+		if (line === undefined) continue;
+		const trimmed = line.trim();
 		if (trimmed.startsWith("#")) continue;
 		if (trimmed.startsWith(prefix) || trimmed.startsWith(`${key} =`)) {
 			lines[i] = `${key}=${value}`;

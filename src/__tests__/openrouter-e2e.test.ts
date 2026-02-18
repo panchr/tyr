@@ -14,7 +14,7 @@ let tempDir: string;
 /** Start a mock OpenRouter API server that returns a canned response. */
 function startMockServer(
 	handler: (req: Request) => Response | Promise<Response>,
-): Server {
+): ReturnType<typeof Bun.serve> {
 	return Bun.serve({
 		port: 0, // random available port
 		fetch: handler,
@@ -404,11 +404,13 @@ describe("OpenRouter provider E2E", () => {
 	test(
 		"OpenRouter receives correct request body",
 		async () => {
-			let receivedBody: Record<string, unknown> | null = null;
-			let receivedHeaders: Headers | null = null;
+			const captured: {
+				body: Record<string, unknown> | null;
+				headers: Headers | null;
+			} = { body: null, headers: null };
 			const server = startMockServer(async (req) => {
-				receivedHeaders = req.headers;
-				receivedBody = (await req.json()) as Record<string, unknown>;
+				captured.headers = req.headers;
+				captured.body = (await req.json()) as Record<string, unknown>;
 				return new Response(
 					apiResponse('{"decision": "allow", "reason": "ok"}'),
 				);
@@ -426,15 +428,15 @@ describe("OpenRouter provider E2E", () => {
 				});
 
 				expect(result.exitCode).toBe(0);
-				expect(receivedBody).not.toBeNull();
-				expect(receivedBody?.model).toBe("anthropic/claude-3-haiku");
-				expect(receivedBody?.temperature).toBe(0);
-				expect(receivedBody?.max_tokens).toBe(256);
-				expect(receivedHeaders).not.toBeNull();
-				expect(receivedHeaders?.get("Authorization")).toBe(
+				expect(captured.body).not.toBeNull();
+				expect(captured.body?.model).toBe("anthropic/claude-3-haiku");
+				expect(captured.body?.temperature).toBe(0);
+				expect(captured.body?.max_tokens).toBe(256);
+				expect(captured.headers).not.toBeNull();
+				expect(captured.headers?.get("Authorization")).toBe(
 					"Bearer test-key-e2e",
 				);
-				expect(receivedHeaders?.get("Content-Type")).toBe("application/json");
+				expect(captured.headers?.get("Content-Type")).toBe("application/json");
 			} finally {
 				server.stop(true);
 			}
