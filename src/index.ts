@@ -6,6 +6,7 @@ import debug from "./commands/debug.ts";
 import install from "./commands/install.ts";
 import judge from "./commands/judge.ts";
 import log from "./commands/log.ts";
+import stats from "./commands/stats.ts";
 import uninstall from "./commands/uninstall.ts";
 import version from "./commands/version.ts";
 import { VERSION } from "./version.ts";
@@ -22,6 +23,7 @@ const main = defineCommand({
 		install,
 		judge,
 		log,
+		stats,
 		uninstall,
 		version,
 	},

@@ -8,7 +8,7 @@ describe.concurrent("cli routing", () => {
 		async () => {
 			const { stdout, exitCode } = await runCli("", []);
 			expect(stdout).toContain(
-				"config|debug|install|judge|log|uninstall|version",
+				"config|debug|install|judge|log|stats|uninstall|version",
 			);
 			expect(exitCode).not.toBe(0);
 		},
@@ -20,7 +20,7 @@ describe.concurrent("cli routing", () => {
 		async () => {
 			const { stdout, exitCode } = await runCli("--help");
 			expect(stdout).toContain(
-				"config|debug|install|judge|log|uninstall|version",
+				"config|debug|install|judge|log|stats|uninstall|version",
 			);
 			expect(exitCode).toBe(0);
 		},
@@ -42,7 +42,7 @@ describe.concurrent("cli routing", () => {
 		async () => {
 			const { stdout, exitCode } = await runCli("bogus");
 			expect(stdout).toContain(
-				"config|debug|install|judge|log|uninstall|version",
+				"config|debug|install|judge|log|stats|uninstall|version",
 			);
 			expect(exitCode).not.toBe(0);
 		},

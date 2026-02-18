@@ -1,5 +1,5 @@
 import { defineCommand } from "citty";
-import { rejectUnknownArgs } from "../args.ts";
+import { parseTime, rejectUnknownArgs } from "../args.ts";
 import { closeDb } from "../db.ts";
 import { type LogRow, readLogEntries } from "../log.ts";
 
@@ -54,26 +54,6 @@ const logArgs = {
 		description: "Filter by cwd path prefix",
 	},
 };
-
-/** Parse a relative time string like '1h', '30m', '2d' into a Date, or parse ISO. */
-function parseTime(value: string): Date | null {
-	const relativeMatch = value.match(/^(\d+)([smhd])$/);
-	if (relativeMatch) {
-		const amount = Number(relativeMatch[1]);
-		const unit = relativeMatch[2];
-		const multipliers: Record<string, number> = {
-			s: 1000,
-			m: 60_000,
-			h: 3_600_000,
-			d: 86_400_000,
-		};
-		const ms = multipliers[unit as string];
-		if (ms === undefined) return null;
-		return new Date(Date.now() - amount * ms);
-	}
-	const d = new Date(value);
-	return Number.isNaN(d.getTime()) ? null : d;
-}
 
 export default defineCommand({
 	meta: {
