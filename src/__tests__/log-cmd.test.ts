@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resetDbInstance } from "../db.ts";
@@ -449,6 +449,60 @@ describe("tyr log", () => {
 			const { stdout, exitCode } = await runLog("clear");
 			expect(exitCode).toBe(0);
 			expect(stdout).toContain("Cleared 0 log entries");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"log retention prunes old entries on read",
+		async () => {
+			const now = Date.now();
+			// One entry from 2 days ago, one from now
+			writeEntries(
+				makeEntry({ timestamp: now - 86_400_000 * 2, session_id: "old" }),
+				makeEntry({ timestamp: now, session_id: "new" }),
+			);
+			// Reset so the subprocess gets its own DB connection
+			resetDbInstance();
+
+			// Write config with 1-day retention
+			const configPath = join(tempDir, "tyr-config.json");
+			await writeFile(
+				configPath,
+				JSON.stringify({ logRetention: "1d" }),
+				"utf-8",
+			);
+
+			const { stdout, exitCode } = await runLog("--json");
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(1);
+			expect(JSON.parse(lines[0] as string).session_id).toBe("new");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"log retention disabled with '0' keeps all entries",
+		async () => {
+			const now = Date.now();
+			writeEntries(
+				makeEntry({ timestamp: now - 86_400_000 * 365, session_id: "ancient" }),
+				makeEntry({ timestamp: now, session_id: "new" }),
+			);
+			resetDbInstance();
+
+			const configPath = join(tempDir, "tyr-config.json");
+			await writeFile(
+				configPath,
+				JSON.stringify({ logRetention: "0" }),
+				"utf-8",
+			);
+
+			const { stdout, exitCode } = await runLog("--json");
+			expect(exitCode).toBe(0);
+			const lines = stdout.trim().split("\n");
+			expect(lines).toHaveLength(2);
 		},
 		{ timeout: 10_000 },
 	);

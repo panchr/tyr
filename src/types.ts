@@ -73,6 +73,14 @@ export const TyrConfigSchema = z.object({
 	llm: LlmConfigSchema.default(LlmConfigSchema.parse({})),
 	/** Include LLM prompt and parameters in log entries for debugging. */
 	verboseLog: z.boolean().default(false),
+	/** Maximum age of log entries. Entries older than this are pruned on the next tyr invocation.
+	 *  Use relative duration syntax: "30d", "12h", "0" to disable. Default: "30d". */
+	logRetention: z
+		.string()
+		.default("30d")
+		.refine((v) => v === "0" || /^\d+[smhd]$/.test(v), {
+			message: "Must be '0' or a duration like '30d', '12h', '45m', '60s'",
+		}),
 });
 
 export type TyrConfig = z.infer<typeof TyrConfigSchema>;

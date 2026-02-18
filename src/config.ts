@@ -107,6 +107,7 @@ const VALID_KEY_TYPES: Record<
 	providers: "providers",
 	failOpen: "boolean",
 	verboseLog: "boolean",
+	logRetention: "string",
 	"llm.provider": "string",
 	"llm.model": "string",
 	"llm.endpoint": "string",

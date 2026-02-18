@@ -7,6 +7,7 @@ import {
 	type Provider,
 	resolveProviders,
 	type TyrConfig,
+	TyrConfigSchema,
 } from "../types.ts";
 
 describe.concurrent("PermissionRequest", () => {
@@ -114,7 +115,24 @@ describe.concurrent("TyrConfig", () => {
 				canDeny: false,
 			},
 			verboseLog: false,
+			logRetention: "30d",
 		});
+	});
+
+	test("rejects invalid logRetention values", () => {
+		expect(() => TyrConfigSchema.parse({ logRetention: "banana" })).toThrow();
+		expect(() => TyrConfigSchema.parse({ logRetention: "30" })).toThrow();
+		expect(() => TyrConfigSchema.parse({ logRetention: "30x" })).toThrow();
+	});
+
+	test("accepts valid logRetention values", () => {
+		expect(TyrConfigSchema.parse({ logRetention: "0" }).logRetention).toBe("0");
+		expect(TyrConfigSchema.parse({ logRetention: "7d" }).logRetention).toBe(
+			"7d",
+		);
+		expect(TyrConfigSchema.parse({ logRetention: "12h" }).logRetention).toBe(
+			"12h",
+		);
 	});
 
 	test("config can be partially overridden", () => {

@@ -10,6 +10,7 @@ import {
 	extractToolInput,
 	type LlmLogEntry,
 	type LogEntry,
+	truncateOldLogs,
 } from "../log.ts";
 import { runPipeline } from "../pipeline.ts";
 import { buildPrompt } from "../prompts.ts";
@@ -143,6 +144,12 @@ export default defineCommand({
 				appendLogEntry(entry);
 			} catch (err) {
 				if (verbose) console.error("[tyr] failed to write log:", err);
+			}
+			try {
+				const auditConfig = await readConfig();
+				truncateOldLogs(auditConfig.logRetention);
+			} catch {
+				// best-effort
 			}
 			if (verbose) {
 				console.error("[tyr] audit mode: logged request, skipping pipeline");
@@ -304,6 +311,13 @@ export default defineCommand({
 			appendLogEntry(entry, llm);
 		} catch (err) {
 			if (verbose) console.error("[tyr] failed to write log:", err);
+		}
+
+		// Prune old log entries based on retention setting
+		try {
+			truncateOldLogs(config.logRetention);
+		} catch (err) {
+			if (verbose) console.error("[tyr] failed to truncate logs:", err);
 		}
 
 		// In shadow mode, always abstain to Claude Code regardless of the real decision

@@ -1,5 +1,6 @@
 import { defineCommand } from "citty";
 import { parseTime, rejectUnknownArgs } from "../args.ts";
+import { readConfig } from "../config.ts";
 import { closeDb } from "../db.ts";
 import {
 	clearLogs,
@@ -7,6 +8,7 @@ import {
 	type LogRow,
 	readLlmLogs,
 	readLogEntries,
+	truncateOldLogs,
 } from "../log.ts";
 
 function formatTime(ts: number): string {
@@ -128,6 +130,14 @@ export default defineCommand({
 				process.exit(1);
 				return;
 			}
+		}
+
+		// Prune old log entries based on retention setting
+		try {
+			const config = await readConfig();
+			truncateOldLogs(config.logRetention);
+		} catch {
+			// Best-effort: don't fail if config is unreadable
 		}
 
 		const entries = readLogEntries({

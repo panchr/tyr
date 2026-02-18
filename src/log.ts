@@ -117,6 +117,41 @@ export function clearLogs(): number {
 	return result.changes;
 }
 
+/** Parse a retention duration string (e.g. "30d", "12h") into milliseconds.
+ *  Returns null for "0" (disabled) or invalid values. */
+export function parseRetention(value: string): number | null {
+	if (value === "0") return null;
+	const match = value.match(/^(\d+)([smhd])$/);
+	if (!match) return null;
+	const amount = Number(match[1]);
+	if (amount === 0) return null;
+	const unit = match[2];
+	const multipliers: Record<string, number> = {
+		s: 1000,
+		m: 60_000,
+		h: 3_600_000,
+		d: 86_400_000,
+	};
+	const ms = multipliers[unit as string];
+	if (ms === undefined) return null;
+	return amount * ms;
+}
+
+/** Delete log entries (and associated LLM logs) older than the given retention period.
+ *  Returns the number of log rows deleted. No-op if retention is "0" (disabled). */
+export function truncateOldLogs(retention: string): number {
+	const ms = parseRetention(retention);
+	if (ms === null) return 0;
+	const cutoff = Date.now() - ms;
+	const db = getDb();
+	db.run(
+		"DELETE FROM llm_logs WHERE log_id IN (SELECT id FROM logs WHERE timestamp < ?)",
+		[cutoff],
+	);
+	const result = db.query("DELETE FROM logs WHERE timestamp < ?").run(cutoff);
+	return result.changes;
+}
+
 export function readLogEntries(opts: ReadLogOptions = {}): LogRow[] {
 	const db = getDb();
 	const conditions: string[] = [];

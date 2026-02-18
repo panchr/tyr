@@ -8,7 +8,9 @@ import {
 	clearLogs,
 	type LogEntry,
 	type LogRow,
+	parseRetention,
 	readLogEntries,
+	truncateOldLogs,
 } from "../log.ts";
 import { saveEnv } from "./helpers/index.ts";
 
@@ -181,6 +183,97 @@ describe("log (SQLite)", () => {
 
 		const entries = readLogEntries({ since: now - 5000 });
 		expect(entries).toHaveLength(1);
+	});
+});
+
+describe("parseRetention", () => {
+	test("parses days", () => {
+		expect(parseRetention("30d")).toBe(30 * 86_400_000);
+	});
+
+	test("parses hours", () => {
+		expect(parseRetention("12h")).toBe(12 * 3_600_000);
+	});
+
+	test("parses minutes", () => {
+		expect(parseRetention("45m")).toBe(45 * 60_000);
+	});
+
+	test("parses seconds", () => {
+		expect(parseRetention("60s")).toBe(60_000);
+	});
+
+	test("returns null for '0' (disabled)", () => {
+		expect(parseRetention("0")).toBeNull();
+	});
+
+	test("returns null for zero-amount durations", () => {
+		expect(parseRetention("0d")).toBeNull();
+		expect(parseRetention("0h")).toBeNull();
+		expect(parseRetention("0s")).toBeNull();
+	});
+
+	test("returns null for invalid input", () => {
+		expect(parseRetention("abc")).toBeNull();
+		expect(parseRetention("")).toBeNull();
+		expect(parseRetention("30x")).toBeNull();
+	});
+});
+
+describe("truncateOldLogs", () => {
+	test("deletes entries older than retention", async () => {
+		await setupTempDb();
+		const now = Date.now();
+		appendLogEntry(makeEntry({ timestamp: now - 86_400_000 * 31 }));
+		appendLogEntry(makeEntry({ timestamp: now - 86_400_000 * 10 }));
+		appendLogEntry(makeEntry({ timestamp: now }));
+
+		const deleted = truncateOldLogs("30d");
+		expect(deleted).toBe(1);
+		expect(readLogEntries()).toHaveLength(2);
+	});
+
+	test("deletes associated llm_logs", async () => {
+		await setupTempDb();
+		const now = Date.now();
+		appendLogEntry(makeEntry({ timestamp: now - 86_400_000 * 31 }), {
+			prompt: "old prompt",
+			model: "haiku",
+		});
+		appendLogEntry(makeEntry({ timestamp: now }), {
+			prompt: "new prompt",
+			model: "haiku",
+		});
+
+		truncateOldLogs("30d");
+
+		const db = getDb();
+		const llmRows = db.query("SELECT * FROM llm_logs").all();
+		expect(llmRows).toHaveLength(1);
+	});
+
+	test("no-op when retention is '0' (disabled)", async () => {
+		await setupTempDb();
+		const now = Date.now();
+		appendLogEntry(makeEntry({ timestamp: now - 86_400_000 * 365 }));
+
+		const deleted = truncateOldLogs("0");
+		expect(deleted).toBe(0);
+		expect(readLogEntries()).toHaveLength(1);
+	});
+
+	test("no-op when no entries are old enough", async () => {
+		await setupTempDb();
+		appendLogEntry(makeEntry({ timestamp: Date.now() }));
+
+		const deleted = truncateOldLogs("30d");
+		expect(deleted).toBe(0);
+		expect(readLogEntries()).toHaveLength(1);
+	});
+
+	test("returns 0 on empty DB", async () => {
+		await setupTempDb();
+		expect(truncateOldLogs("1d")).toBe(0);
 	});
 });
 

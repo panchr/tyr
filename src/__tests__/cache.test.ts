@@ -60,6 +60,7 @@ function makeConfig(
 			...llmOverrides,
 		},
 		verboseLog: false,
+		logRetention: "30d",
 		...rest,
 	};
 }
