@@ -26,17 +26,16 @@ Read the claude permissions (global + project) and get a permission set. Match p
 No other providers should be supported yet.
 
 ### Phase 2
-Just run claude -p “prompt…” with a pre-defined prompt, that is templated with the permission set read from Claude's config.
+Just run claude -p "prompt…" with a pre-defined prompt, that is templated with the permission set read from Claude's config.
 
 ### Phase 3
-Run a server that caches permission decisions. The first invocation of the CLI starts the server
+SQLite-backed storage for decision logs, permission cache, and metrics.
 
-### Phase 4
-* Make the cache durable on disk, per-project.
-* Track metrics of how many requests were handled by cache and by the LLM (this is saved user effort)
-* Add a slash command in the plugin that suggests new permissions to add to claude settings (and can make those changes), based on
-  the cache / record of what the plugin has auto-performed.
-  
+- **Decision cache** — keyed by (tool_name, tool_input, cwd, config_hash). The config hash is a SHA256 fingerprint of Claude settings + tyr config, so cache entries are automatically invalidated when settings change.
+- **Durable logging** — all decisions stored in SQLite with WAL mode for concurrent readers.
+- **Metrics** — `tyr stats` aggregates decisions, cache hit rates, provider distribution from the SQLite database.
+- **Suggestions** — `tyr suggest` queries frequently-allowed commands and recommends new allow rules for Claude settings.
+
 ### Future Work
 * Support OpenRouter as a provider (for LLM checks)
 * Support other agents, namely opencode
@@ -97,9 +96,9 @@ injection), so we need to be careful with it. We'll need to add many tests for
 this to ensure shell escapes are not possible.
 
 ## Caching
-We should cache the result for a given permission request, so that we don't need to do the complex lookup again.
+Permission decisions are cached in a SQLite table keyed by (tool_name, tool_input, cwd, config_hash). The config hash is a SHA256 fingerprint of the agent's settings and tyr's own config, so cached entries are automatically invalidated whenever the user changes their Claude settings or tyr configuration.
 
-Cache invalidation is driven by the config file watcher in `src/agents/`. When a change to Claude's settings is detected, the daemon re-evaluates cached decisions against the updated permission rules (chain-based only — prompt-based re-evaluation is too expensive) and evicts any entries that are no longer valid.
+Cache reads and writes happen synchronously via Bun's built-in SQLite driver (no separate daemon or IPC needed). The database uses WAL mode for safe concurrent access from multiple tyr invocations.
 
 ## Security Model
 
@@ -154,7 +153,7 @@ tyr is invoked as a Claude Code hook on `PermissionRequest` events.
         "hooks": [
           {
             "type": "command",
-            "command": "tyr check"
+            "command": "tyr judge"
           }
         ]
       }
@@ -176,4 +175,3 @@ Aim for TDD. Once an interface is decided for an implementation:
 
 ## Project Naming
 The project is called `tyr`, after the Germanic God of Law.
-

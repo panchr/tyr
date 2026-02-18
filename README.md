@@ -27,7 +27,7 @@ Tyr gives you the same automation benefits with granular control and full observ
 | **Shadow** (`tyr install --shadow`) | Runs the full allow/deny pipeline but always abstains to Claude Code | Validate your rules against real traffic before going live |
 | **Active** (`tyr install`) | Evaluates requests and enforces allow/deny decisions | Full automation with pattern-based guardrails |
 
-Every decision is logged to `~/.local/share/tyr/log.jsonl` (or `$TYR_LOG_FILE`), so you can review what was allowed, denied, or abstained — and why.
+Every decision is logged to a SQLite database at `~/.local/share/tyr/tyr.db` (or `$TYR_DB_PATH`), so you can review what was allowed, denied, or abstained — and why.
 
 ## Prerequisites
 
@@ -70,7 +70,9 @@ tyr uninstall [--global] [--dry-run]
 tyr config show
 tyr config set <key> <value>
 tyr config path
-tyr log [--last N] [--tail] [--since T] [--until T] [--decision D] [--provider P] [--cwd C]
+tyr log [--last N] [--json] [--since T] [--until T] [--decision D] [--provider P] [--cwd C]
+tyr stats [--since T] [--json]
+tyr suggest [--apply] [--global|--project] [--min-count N] [--json]
 tyr debug claude-config
 tyr version
 ```
@@ -83,6 +85,7 @@ Tyr reads its own config from `~/.config/tyr/config.json` (overridable via `TYR_
 |-----|------|---------|-------------|
 | `allowChainedCommands` | boolean | `true` | Enable the chained-commands provider |
 | `allowPromptChecks` | boolean | `false` | Enable LLM-based permission checks |
+| `cacheChecks` | boolean | `false` | Enable SQLite-backed decision cache |
 | `failOpen` | boolean | `false` | Approve on error instead of failing closed |
 | `llmModel` | string | `"haiku"` | Model identifier for LLM evaluations |
 | `llmTimeout` | number | `10` | LLM request timeout in seconds |
