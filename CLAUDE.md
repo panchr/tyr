@@ -12,9 +12,38 @@ bd close <id>         # Complete work
 bd sync               # Sync with git
 ```
 
+## Project Overview
+
+Tyr is a Claude Code hook for intelligent permission management. Key areas:
+
+- `src/commands/` — CLI commands (install, config, judge, log, stats, suggest, etc.)
+- `src/providers/` — Pipeline providers (cache, chained-commands, claude, openrouter)
+- `src/agents/` — Agent integrations (Claude Code settings parsing)
+- `src/config.ts` — Config file reading/writing (JSONC support)
+- `src/types.ts` — Zod schemas, provider interface, config types
+- `src/db.ts` — SQLite database, schema migrations
+- `src/log.ts` — Decision logging and retention
+- `src/__tests__/` — All tests (unit and E2E)
+
 ## Backwards Compatibility
 
 Tyr is pre-v1. Do not add backwards-compatibility shims, migration code, or legacy fallbacks for config formats, log formats, or CLI flags. If the user has an outdated config, tyr should error with a clear message rather than silently migrating.
+
+## Testing
+
+- **Always add tests** when making code changes. Every bug fix needs a regression test.
+- Unit tests go alongside the code they test in `src/__tests__/`.
+- E2E tests spawn `tyr` as a subprocess with isolated config/DB (see existing patterns in `judge.test.ts`, `cache.test.ts`).
+- Use `saveEnv()` from `src/__tests__/helpers/` to isolate environment variables.
+- Use `TYR_DB_PATH`, `TYR_CONFIG_FILE`, and `CLAUDE_CONFIG_DIR` env vars to isolate test state.
+- Tests that spawn subprocesses should set a `{ timeout: 10_000 }` or similar.
+- The 11 OpenRouter E2E failures (`EADDRINUSE` on `Bun.serve`) are a known sandbox limitation — they pass outside the sandbox.
+
+## Documentation
+
+- **Keep README.md up to date** when changing user-facing behavior: CLI flags, config keys, providers, commands.
+- The config table in README.md must match `TyrConfigSchema` in `src/types.ts`.
+- The commands listing in README.md must match the subcommands registered in `src/index.ts`.
 
 ## Dev Workflow
 
@@ -26,8 +55,6 @@ After every task, follow this workflow in order:
 4. **Run `bun test`** — fix any issues before proceeding
 5. **Run `code-reviewer` agent** — fix any issues before proceeding. Group changed files by language and invoke the agent separately for each group (e.g., `.ts` files and `.sh` files get separate reviews in parallel)
 6. **Commit and close beads issue** (if there is one) — see commit rules below
-
-Whenever you fix a bug, always add a test (unit and/or E2E) to catch that same bug.
 
 ## Landing the Plane (Session Completion)
 
