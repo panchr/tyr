@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resetDbInstance } from "../db.ts";
-import { appendLogEntry, type LogEntry } from "../log.ts";
+import { appendLogEntry, type LlmLogEntry, type LogEntry } from "../log.ts";
 import { saveEnv } from "./helpers/index.ts";
 
 let tempDir: string;
@@ -25,9 +25,15 @@ function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
 	};
 }
 
-function writeEntries(...entries: LogEntry[]): void {
+function writeEntries(
+	...entries: (LogEntry | [LogEntry, LlmLogEntry])[]
+): void {
 	for (const e of entries) {
-		appendLogEntry(e);
+		if (Array.isArray(e)) {
+			appendLogEntry(e[0], e[1]);
+		} else {
+			appendLogEntry(e);
+		}
 	}
 }
 
@@ -352,6 +358,54 @@ describe("tyr log", () => {
 			const lines = stdout.trim().split("\n");
 			expect(lines).toHaveLength(1);
 			expect(JSON.parse(lines[0] as string).provider).toBe("p1");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--verbose shows model and prompt in table mode",
+		async () => {
+			writeEntries([
+				makeEntry({ tool_input: "echo hi" }),
+				{ prompt: "Is this command safe?", model: "haiku" },
+			]);
+			const { stdout, exitCode } = await runLog("--verbose");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("echo hi");
+			expect(stdout).toContain("model: haiku");
+			expect(stdout).toContain("prompt: Is this command safe?");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--verbose --json includes llm data",
+		async () => {
+			writeEntries([
+				makeEntry({ session_id: "v1" }),
+				{ prompt: "Check this", model: "sonnet" },
+			]);
+			const { stdout, exitCode } = await runLog("--verbose", "--json");
+			expect(exitCode).toBe(0);
+			const row = JSON.parse(stdout.trim());
+			expect(row.session_id).toBe("v1");
+			expect(row.llm).toBeDefined();
+			expect(row.llm.model).toBe("sonnet");
+			expect(row.llm.prompt).toBe("Check this");
+			expect(row.llm.log_id).toBeUndefined();
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"--verbose with no llm logs shows no extra output",
+		async () => {
+			writeEntries(makeEntry({ tool_input: "ls" }));
+			const { stdout, exitCode } = await runLog("--verbose");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("ls");
+			expect(stdout).not.toContain("model:");
+			expect(stdout).not.toContain("prompt:");
 		},
 		{ timeout: 10_000 },
 	);

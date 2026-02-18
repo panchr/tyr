@@ -77,6 +77,29 @@ export interface LogRow {
 	mode: string | null;
 }
 
+export interface LlmLogRow {
+	log_id: number;
+	prompt: string;
+	model: string;
+}
+
+/** Fetch LLM verbose logs for the given log entry IDs. */
+export function readLlmLogs(logIds: number[]): Map<number, LlmLogRow> {
+	if (logIds.length === 0) return new Map();
+	const db = getDb();
+	const placeholders = logIds.map(() => "?").join(",");
+	const rows = db
+		.query(
+			`SELECT log_id, prompt, model FROM llm_logs WHERE log_id IN (${placeholders})`,
+		)
+		.all(...logIds) as LlmLogRow[];
+	const map = new Map<number, LlmLogRow>();
+	for (const row of rows) {
+		map.set(row.log_id, row);
+	}
+	return map;
+}
+
 export interface ReadLogOptions {
 	last?: number;
 	since?: number;

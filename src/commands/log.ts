@@ -1,7 +1,12 @@
 import { defineCommand } from "citty";
 import { parseTime, rejectUnknownArgs } from "../args.ts";
 import { closeDb } from "../db.ts";
-import { type LogRow, readLogEntries } from "../log.ts";
+import {
+	type LlmLogRow,
+	type LogRow,
+	readLlmLogs,
+	readLogEntries,
+} from "../log.ts";
 
 function formatTime(ts: number): string {
 	const d = new Date(ts);
@@ -37,6 +42,10 @@ const logArgs = {
 	last: {
 		type: "string" as const,
 		description: "Show last N entries (default: 20)",
+	},
+	verbose: {
+		type: "boolean" as const,
+		description: "Show LLM prompt and model for entries with verbose logs",
 	},
 	json: {
 		type: "boolean" as const,
@@ -116,9 +125,21 @@ export default defineCommand({
 			cwd: args.cwd,
 		});
 
+		const verboseMode = args.verbose ?? false;
+
+		const llmLogs = verboseMode
+			? readLlmLogs(entries.map((e) => e.id))
+			: new Map<number, LlmLogRow>();
+
 		if (jsonMode) {
 			for (const entry of entries) {
-				console.log(JSON.stringify(entry));
+				const llmRow = llmLogs.get(entry.id);
+				if (llmRow) {
+					const { log_id: _, ...llm } = llmRow;
+					console.log(JSON.stringify({ ...entry, llm }));
+				} else {
+					console.log(JSON.stringify(entry));
+				}
 			}
 		} else {
 			if (entries.length === 0) {
@@ -129,6 +150,13 @@ export default defineCommand({
 			console.log(HEADER);
 			for (const entry of entries) {
 				console.log(formatEntry(entry));
+				if (verboseMode) {
+					const llm = llmLogs.get(entry.id);
+					if (llm) {
+						console.log(`  model: ${llm.model}`);
+						console.log(`  prompt: ${llm.prompt}`);
+					}
+				}
 			}
 		}
 
