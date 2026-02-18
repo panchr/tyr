@@ -23,6 +23,8 @@ After every task, follow this workflow in order:
 5. **Run `code-reviewer` agent** — fix any issues before proceeding. Group changed files by language and invoke the agent separately for each group (e.g., `.ts` files and `.sh` files get separate reviews in parallel)
 6. **Commit and close beads issue** (if there is one) — see commit rules below
 
+Whenever you fix a bug, always add a test (unit and/or E2E) to catch that same bug.
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git commit` succeeds.
