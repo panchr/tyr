@@ -7,8 +7,10 @@ import {
 	settingsPaths,
 } from "../agents/claude.ts";
 import { rejectUnknownArgs } from "../args.ts";
+import { readConfig } from "../config.ts";
 import { closeDb, getDb } from "../db.ts";
 import { readSettings, writeSettings } from "../install.ts";
+import { buildGeneralizePrompt, parseGeneralizeResponse } from "../prompts.ts";
 
 const suggestArgs = {
 	apply: {
@@ -31,6 +33,15 @@ const suggestArgs = {
 		type: "boolean" as const,
 		description: "Output raw JSON",
 	},
+	"no-generalize": {
+		type: "boolean" as const,
+		description: "Skip LLM generalization of suggestions",
+	},
+	all: {
+		type: "boolean" as const,
+		description:
+			"Include commands from all projects (default: current directory)",
+	},
 };
 
 interface CommandFrequency {
@@ -44,23 +55,39 @@ export interface Suggestion {
 	rule: string;
 }
 
-/** Query frequently-allowed commands and filter out those already in allow lists. */
+/** Query frequently-allowed commands and filter out those already in allow lists.
+ *  When `cwd` is provided, only includes commands from that directory (or subdirs). */
 export function getSuggestions(
 	minCount: number,
 	allowPatterns: string[],
+	cwd?: string,
 ): Suggestion[] {
 	const db = getDb();
 
-	const rows = db
-		.query(
-			`SELECT tool_input, COUNT(*) as count
+	let query: string;
+	let params: (number | string)[];
+
+	if (cwd) {
+		const escapedCwd = cwd.replace(/[%_]/g, "\\$&");
+		query = `SELECT tool_input, COUNT(*) as count
+			 FROM logs
+			 WHERE decision = 'allow' AND mode IS NULL AND tool_name = 'Bash'
+			   AND (cwd = ? OR cwd LIKE ? || '/%' ESCAPE '\\')
+			 GROUP BY tool_input
+			 HAVING COUNT(*) >= ?
+			 ORDER BY COUNT(*) DESC`;
+		params = [cwd, escapedCwd, minCount];
+	} else {
+		query = `SELECT tool_input, COUNT(*) as count
 			 FROM logs
 			 WHERE decision = 'allow' AND mode IS NULL AND tool_name = 'Bash'
 			 GROUP BY tool_input
 			 HAVING COUNT(*) >= ?
-			 ORDER BY COUNT(*) DESC`,
-		)
-		.all(minCount) as CommandFrequency[];
+			 ORDER BY COUNT(*) DESC`;
+		params = [minCount];
+	}
+
+	const rows = db.query(query).all(...params) as CommandFrequency[];
 
 	const suggestions: Suggestion[] = [];
 	for (const row of rows) {
@@ -77,6 +104,78 @@ export function getSuggestions(
 	}
 
 	return suggestions;
+}
+
+const GENERALIZE_TIMEOUT_MS = 30_000;
+
+/** Use an LLM to generalize raw suggestions into broader glob patterns.
+ *  Falls back to the original suggestions on any error. */
+export async function generalizeSuggestions(
+	suggestions: Suggestion[],
+	model: string,
+): Promise<Suggestion[]> {
+	if (suggestions.length === 0) return suggestions;
+
+	const prompt = buildGeneralizePrompt(
+		suggestions.map((s) => ({ command: s.command, count: s.count })),
+	);
+
+	const env: Record<string, string | undefined> = {
+		...process.env,
+		CLAUDECODE: undefined,
+	};
+
+	const proc = Bun.spawn(
+		[
+			"claude",
+			"-p",
+			"--output-format",
+			"text",
+			"--no-session-persistence",
+			"--model",
+			model,
+		],
+		{
+			stdin: new Response(prompt).body,
+			stdout: "pipe",
+			stderr: "pipe",
+			env,
+		},
+	);
+
+	let timer: Timer | undefined;
+	const result = await Promise.race([
+		(async () => {
+			const [stdout] = await Promise.all([
+				new Response(proc.stdout).text(),
+				new Response(proc.stderr).text(),
+			]);
+			const exitCode = await proc.exited;
+			return { stdout, exitCode, timedOut: false };
+		})(),
+		new Promise<{ stdout: string; exitCode: number; timedOut: boolean }>(
+			(resolve) => {
+				timer = setTimeout(() => {
+					proc.kill();
+					resolve({ stdout: "", exitCode: -1, timedOut: true });
+				}, GENERALIZE_TIMEOUT_MS);
+			},
+		),
+	]);
+	clearTimeout(timer);
+
+	if (result.timedOut || result.exitCode !== 0) return suggestions;
+
+	const generalized = parseGeneralizeResponse(result.stdout);
+	if (!generalized) return suggestions;
+
+	return generalized
+		.map((g) => ({
+			command: g.pattern,
+			count: g.count,
+			rule: `Bash(${g.pattern})`,
+		}))
+		.sort((a, b) => b.count - a.count);
 }
 
 /** Merge new allow rules into existing settings without clobbering. */
@@ -132,7 +231,24 @@ export default defineCommand({
 				}
 			}
 
-			const suggestions = getSuggestions(minCount, allowPatterns);
+			const cwdFilter = args.all ? undefined : process.cwd();
+			const rawSuggestions = getSuggestions(minCount, allowPatterns, cwdFilter);
+
+			let suggestions = rawSuggestions;
+			if (!args["no-generalize"] && rawSuggestions.length > 0) {
+				let model = "haiku";
+				try {
+					const config = await readConfig();
+					model = config.claude.model;
+				} catch {
+					// use default model
+				}
+				try {
+					suggestions = await generalizeSuggestions(rawSuggestions, model);
+				} catch {
+					// fall back to raw suggestions
+				}
+			}
 
 			if (args.json) {
 				console.log(JSON.stringify(suggestions));

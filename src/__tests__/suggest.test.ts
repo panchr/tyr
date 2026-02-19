@@ -69,9 +69,13 @@ describe("tyr suggest", () => {
 		"no suggestions with empty database",
 		async () => {
 			const dbPath = await setupTempDb();
-			const result = await runCli("suggest", ["--json"], {
-				env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-			});
+			const result = await runCli(
+				"suggest",
+				["--json", "--no-generalize", "--all"],
+				{
+					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
+				},
+			);
 			expect(result.exitCode).toBe(0);
 			expect(JSON.parse(result.stdout.trim())).toEqual([]);
 		},
@@ -91,9 +95,13 @@ describe("tyr suggest", () => {
 			}
 			resetDbInstance();
 
-			const result = await runCli("suggest", ["--json", "--min-count", "5"], {
-				env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-			});
+			const result = await runCli(
+				"suggest",
+				["--json", "--min-count", "5", "--no-generalize", "--all"],
+				{
+					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
+				},
+			);
 			expect(result.exitCode).toBe(0);
 			const suggestions = JSON.parse(result.stdout.trim());
 			expect(suggestions).toHaveLength(1);
@@ -118,9 +126,13 @@ describe("tyr suggest", () => {
 			// "bun test" already allowed
 			await writeGlobalSettings(tempDir, ["Bash(bun test)"]);
 
-			const result = await runCli("suggest", ["--json", "--min-count", "5"], {
-				env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-			});
+			const result = await runCli(
+				"suggest",
+				["--json", "--min-count", "5", "--no-generalize", "--all"],
+				{
+					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
+				},
+			);
 			expect(result.exitCode).toBe(0);
 			const suggestions = JSON.parse(result.stdout.trim());
 			expect(suggestions).toHaveLength(1);
@@ -142,9 +154,13 @@ describe("tyr suggest", () => {
 			// Wildcard covers both
 			await writeGlobalSettings(tempDir, ["Bash(bun *)"]);
 
-			const result = await runCli("suggest", ["--json", "--min-count", "5"], {
-				env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-			});
+			const result = await runCli(
+				"suggest",
+				["--json", "--min-count", "5", "--no-generalize", "--all"],
+				{
+					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
+				},
+			);
 			expect(result.exitCode).toBe(0);
 			const suggestions = JSON.parse(result.stdout.trim());
 			expect(suggestions).toEqual([]);
@@ -161,9 +177,13 @@ describe("tyr suggest", () => {
 			}
 			resetDbInstance();
 
-			const result = await runCli("suggest", ["--json", "--min-count", "5"], {
-				env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-			});
+			const result = await runCli(
+				"suggest",
+				["--json", "--min-count", "5", "--no-generalize", "--all"],
+				{
+					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
+				},
+			);
 			expect(result.exitCode).toBe(0);
 			expect(JSON.parse(result.stdout.trim())).toEqual([]);
 		},
@@ -179,9 +199,13 @@ describe("tyr suggest", () => {
 			}
 			resetDbInstance();
 
-			const result = await runCli("suggest", ["--json", "--min-count", "5"], {
-				env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-			});
+			const result = await runCli(
+				"suggest",
+				["--json", "--min-count", "5", "--no-generalize", "--all"],
+				{
+					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
+				},
+			);
 			expect(result.exitCode).toBe(0);
 			expect(JSON.parse(result.stdout.trim())).toEqual([]);
 		},
@@ -199,7 +223,7 @@ describe("tyr suggest", () => {
 
 			const result = await runCli(
 				"suggest",
-				["--apply", "--global", "--min-count", "5"],
+				["--apply", "--global", "--min-count", "5", "--no-generalize", "--all"],
 				{ env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir } },
 			);
 			expect(result.exitCode).toBe(0);
@@ -235,7 +259,7 @@ describe("tyr suggest", () => {
 
 			const result = await runCli(
 				"suggest",
-				["--apply", "--global", "--min-count", "5"],
+				["--apply", "--global", "--min-count", "5", "--no-generalize", "--all"],
 				{ env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir } },
 			);
 			expect(result.exitCode).toBe(0);
@@ -261,9 +285,13 @@ describe("tyr suggest", () => {
 			await writeFile(settingsPath, "{}", "utf-8");
 			const before = await readFile(settingsPath, "utf-8");
 
-			const result = await runCli("suggest", ["--min-count", "5"], {
-				env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-			});
+			const result = await runCli(
+				"suggest",
+				["--min-count", "5", "--no-generalize", "--all"],
+				{
+					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
+				},
+			);
 			expect(result.exitCode).toBe(0);
 			expect(result.stdout).toContain("Bash(bun test)");
 			expect(result.stdout).toContain("--apply");
@@ -326,9 +354,13 @@ describe("tyr suggest", () => {
 			}
 			resetDbInstance();
 
-			const result = await runCli("suggest", ["--json", "--min-count", "5"], {
-				env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-			});
+			const result = await runCli(
+				"suggest",
+				["--json", "--min-count", "5", "--no-generalize", "--all"],
+				{
+					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
+				},
+			);
 			expect(result.exitCode).toBe(0);
 			expect(JSON.parse(result.stdout.trim())).toEqual([]);
 		},
@@ -344,12 +376,62 @@ describe("tyr suggest", () => {
 			}
 			resetDbInstance();
 
-			const result = await runCli("suggest", ["--min-count", "5"], {
-				env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-			});
+			const result = await runCli(
+				"suggest",
+				["--min-count", "5", "--no-generalize", "--all"],
+				{
+					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
+				},
+			);
 			expect(result.exitCode).toBe(0);
 			expect(result.stdout).toContain("Bash(bun test)");
 			expect(result.stdout).toContain("7 approvals");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"scopes suggestions to current project by default",
+		async () => {
+			const dbPath = await setupTempDb();
+			// Commands from a different project
+			for (let i = 0; i < 10; i++) {
+				insertEntries(
+					makeEntry({ tool_input: "bun test", cwd: "/other/project" }),
+				);
+			}
+			// Commands from the subprocess cwd (repo root)
+			for (let i = 0; i < 10; i++) {
+				insertEntries(
+					makeEntry({ tool_input: "bun lint", cwd: process.cwd() }),
+				);
+			}
+			resetDbInstance();
+
+			// Without --all, only cwd-matching commands appear
+			const scoped = await runCli(
+				"suggest",
+				["--json", "--min-count", "5", "--no-generalize"],
+				{
+					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
+				},
+			);
+			expect(scoped.exitCode).toBe(0);
+			const scopedSuggestions = JSON.parse(scoped.stdout.trim());
+			expect(scopedSuggestions).toHaveLength(1);
+			expect(scopedSuggestions[0].command).toBe("bun lint");
+
+			// With --all, both appear
+			const all = await runCli(
+				"suggest",
+				["--json", "--min-count", "5", "--no-generalize", "--all"],
+				{
+					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
+				},
+			);
+			expect(all.exitCode).toBe(0);
+			const allSuggestions = JSON.parse(all.stdout.trim());
+			expect(allSuggestions).toHaveLength(2);
 		},
 		{ timeout: 10_000 },
 	);
