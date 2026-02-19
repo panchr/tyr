@@ -99,6 +99,18 @@ export default defineCommand({
 
 		const startTime = performance.now();
 
+		// Validate config early so broken config is caught before stdin parsing
+		let config: TyrConfig;
+		try {
+			config = await readConfig();
+		} catch (err) {
+			console.error(
+				`[tyr] invalid config: ${err instanceof Error ? err.message : err}`,
+			);
+			process.exit(1);
+			return;
+		}
+
 		let raw: string;
 		try {
 			raw = await readStdin();
@@ -154,8 +166,7 @@ export default defineCommand({
 				if (verbose) console.error("[tyr] failed to write log:", err);
 			}
 			try {
-				const auditConfig = await readConfig();
-				truncateOldLogs(auditConfig.logRetention);
+				truncateOldLogs(config.logRetention);
 			} catch {
 				// best-effort
 			}
@@ -169,18 +180,6 @@ export default defineCommand({
 
 		// Load env vars from tyr config directory (e.g. API keys)
 		loadEnvFile();
-
-		// Build provider pipeline based on config, applying CLI overrides
-		let config: TyrConfig;
-		try {
-			config = await readConfig();
-		} catch (err) {
-			console.error(
-				`[tyr] invalid config: ${err instanceof Error ? err.message : err}`,
-			);
-			process.exit(1);
-			return;
-		}
 		if (args.providers !== undefined) {
 			const parsed = parseValue("providers", args.providers);
 			if (!parsed) {

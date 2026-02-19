@@ -221,6 +221,54 @@ describe("tyr judge", () => {
 	);
 });
 
+describe("tyr judge: invalid config", () => {
+	test(
+		"exits with code 1 and error message on invalid config",
+		async () => {
+			await writeFile(
+				join(tempDir, "tyr-config.json"),
+				JSON.stringify({ providers: ["bogus"] }),
+			);
+
+			const req = makePermissionRequest({
+				cwd: tempDir,
+				command: "echo hello",
+			});
+
+			const result = await runJudge(JSON.stringify(req), {
+				env: isolatedEnv(tempDir),
+			});
+
+			expect(result.exitCode).toBe(1);
+			expect(result.stderr).toContain("[tyr] invalid config:");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"exits with code 1 on unrecognized config keys",
+		async () => {
+			await writeFile(
+				join(tempDir, "tyr-config.json"),
+				JSON.stringify({ llm: { model: "haiku" } }),
+			);
+
+			const req = makePermissionRequest({
+				cwd: tempDir,
+				command: "echo hello",
+			});
+
+			const result = await runJudge(JSON.stringify(req), {
+				env: isolatedEnv(tempDir),
+			});
+
+			expect(result.exitCode).toBe(1);
+			expect(result.stderr).toContain("[tyr] invalid config:");
+		},
+		{ timeout: 10_000 },
+	);
+});
+
 describe("tyr judge: failOpen", () => {
 	/** Write a tyr config with failOpen enabled. */
 	async function enableFailOpen(projectDir: string) {
