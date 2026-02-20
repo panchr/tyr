@@ -101,6 +101,7 @@ const VALID_KEY_TYPES: Record<
 > = {
 	providers: "providers",
 	failOpen: "boolean",
+	conversationContext: "boolean",
 	verboseLog: "boolean",
 	logRetention: "string",
 	"claude.model": "string",

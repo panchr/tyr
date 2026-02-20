@@ -18,8 +18,11 @@ import { CacheProvider } from "../providers/cache.ts";
 import { ChainedCommandsProvider } from "../providers/chained-commands.ts";
 import { ClaudeProvider } from "../providers/claude.ts";
 import { OpenRouterProvider } from "../providers/openrouter.ts";
+import { formatTranscriptForPrompt, readTranscript } from "../transcript.ts";
 import type { HookResponse, Provider, TyrConfig } from "../types.ts";
 import { resolveProviders } from "../types.ts";
+
+const MAX_TRANSCRIPT_MESSAGES = 10;
 
 const judgeArgs = {
 	verbose: {
@@ -76,6 +79,11 @@ const judgeArgs = {
 	"verbose-log": {
 		type: "boolean" as const,
 		description: "Include LLM prompt and parameters in log entries",
+	},
+	"conversation-context": {
+		type: "boolean" as const,
+		description:
+			"Override conversationContext config (include transcript in LLM prompts)",
 	},
 };
 
@@ -224,12 +232,29 @@ export default defineCommand({
 			config.openrouter.canDeny = args["openrouter-can-deny"];
 		if (args["verbose-log"] !== undefined)
 			config.verboseLog = args["verbose-log"];
+		if (args["conversation-context"] !== undefined)
+			config.conversationContext = args["conversation-context"];
 
 		const agent = new ClaudeAgent();
 		try {
 			await agent.init(req.cwd);
 		} catch (err) {
 			if (verbose) console.error("[tyr] failed to init agent config:", err);
+		}
+
+		// Read conversation context from transcript if enabled
+		let transcriptContext: string | undefined;
+		if (config.conversationContext) {
+			const messages = await readTranscript(
+				req.transcript_path,
+				MAX_TRANSCRIPT_MESSAGES,
+			);
+			transcriptContext = formatTranscriptForPrompt(messages) || undefined;
+			if (verbose && transcriptContext) {
+				console.error(
+					`[tyr] conversation context (${messages.length} messages):\n${transcriptContext}`,
+				);
+			}
 		}
 
 		// Build provider pipeline from config
@@ -248,11 +273,23 @@ export default defineCommand({
 					providers.push(new ChainedCommandsProvider(agent, verbose));
 					break;
 				case "claude":
-					providers.push(new ClaudeProvider(agent, config.claude, verbose));
+					providers.push(
+						new ClaudeProvider(
+							agent,
+							config.claude,
+							verbose,
+							transcriptContext,
+						),
+					);
 					break;
 				case "openrouter":
 					providers.push(
-						new OpenRouterProvider(agent, config.openrouter, verbose),
+						new OpenRouterProvider(
+							agent,
+							config.openrouter,
+							verbose,
+							transcriptContext,
+						),
 					);
 					break;
 			}
@@ -319,12 +356,22 @@ export default defineCommand({
 		if (config.verboseLog) {
 			if (result.provider === "claude") {
 				llm = {
-					prompt: buildPrompt(req, agent, config.claude.canDeny),
+					prompt: buildPrompt(
+						req,
+						agent,
+						config.claude.canDeny,
+						transcriptContext,
+					),
 					model: config.claude.model,
 				};
 			} else if (result.provider === "openrouter") {
 				llm = {
-					prompt: buildPrompt(req, agent, config.openrouter.canDeny),
+					prompt: buildPrompt(
+						req,
+						agent,
+						config.openrouter.canDeny,
+						transcriptContext,
+					),
 					model: config.openrouter.model,
 				};
 			} else {
@@ -332,14 +379,24 @@ export default defineCommand({
 				for (const name of resolveProviders(config)) {
 					if (name === "claude") {
 						llm = {
-							prompt: buildPrompt(req, agent, config.claude.canDeny),
+							prompt: buildPrompt(
+								req,
+								agent,
+								config.claude.canDeny,
+								transcriptContext,
+							),
 							model: config.claude.model,
 						};
 						break;
 					}
 					if (name === "openrouter") {
 						llm = {
-							prompt: buildPrompt(req, agent, config.openrouter.canDeny),
+							prompt: buildPrompt(
+								req,
+								agent,
+								config.openrouter.canDeny,
+								transcriptContext,
+							),
 							model: config.openrouter.model,
 						};
 						break;

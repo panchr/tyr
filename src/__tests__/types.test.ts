@@ -107,6 +107,7 @@ describe.concurrent("TyrConfig", () => {
 		expect(DEFAULT_TYR_CONFIG).toEqual({
 			providers: ["chained-commands"],
 			failOpen: false,
+			conversationContext: false,
 			claude: {
 				model: "haiku",
 				timeout: 10,

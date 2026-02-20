@@ -26,6 +26,7 @@ export function computeConfigHash(
 		"claude.canDeny": config.claude.canDeny,
 		"openrouter.model": config.openrouter.model,
 		"openrouter.canDeny": config.openrouter.canDeny,
+		conversationContext: config.conversationContext,
 	});
 	return createHash("sha256").update(data).digest("hex");
 }

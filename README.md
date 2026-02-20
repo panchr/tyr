@@ -99,6 +99,7 @@ Tyr reads its own config from `~/.config/tyr/config.json` (overridable via `TYR_
 | `openrouter.endpoint` | string | `"https://openrouter.ai/api/v1"` | OpenRouter API endpoint |
 | `openrouter.timeout` | number | `10` | OpenRouter request timeout in seconds |
 | `openrouter.canDeny` | boolean | `false` | Whether OpenRouter can deny requests |
+| `conversationContext` | boolean | `false` | Include recent conversation in LLM prompts |
 | `verboseLog` | boolean | `false` | Include LLM prompt/params in log entries |
 | `logRetention` | string | `"30d"` | Auto-prune logs older than this (`"0"` to disable) |
 

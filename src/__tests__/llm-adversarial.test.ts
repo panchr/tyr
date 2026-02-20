@@ -140,10 +140,10 @@ describe.concurrent("parseLlmResponse adversarial outputs", () => {
 		expect(result?.reason).toBe("ok");
 	});
 
-	test("response with decision=abstain returns null", () => {
+	test("response with decision=abstain is accepted", () => {
 		expect(
 			parseLlmResponse('{"decision": "abstain", "reason": "unsure"}'),
-		).toBeNull();
+		).toEqual({ decision: "abstain", reason: "unsure" });
 	});
 
 	test("deeply nested JSON returns null", () => {

@@ -19,15 +19,19 @@ export class OpenRouterProvider implements Provider {
 	private endpoint: string;
 	private canDeny: boolean;
 
+	private conversationContext?: string;
+
 	constructor(
 		private agent: ClaudeAgent,
 		config: OpenRouterConfig,
 		private verbose: boolean = false,
+		conversationContext?: string,
 	) {
 		this.model = config.model;
 		this.timeoutMs = config.timeout * S_TO_MS;
 		this.canDeny = config.canDeny;
 		this.endpoint = config.endpoint;
+		this.conversationContext = conversationContext;
 	}
 
 	async checkPermission(req: PermissionRequest): Promise<ProviderResult> {
@@ -45,7 +49,12 @@ export class OpenRouterProvider implements Provider {
 			return { decision: "abstain" };
 		}
 
-		const prompt = buildPrompt(req, this.agent, this.canDeny);
+		const prompt = buildPrompt(
+			req,
+			this.agent,
+			this.canDeny,
+			this.conversationContext,
+		);
 		const url = `${this.endpoint}/chat/completions`;
 
 		const controller = new AbortController();
@@ -101,6 +110,10 @@ export class OpenRouterProvider implements Provider {
 
 		const llmDecision = parseLlmResponse(responseText);
 		if (!llmDecision) return { decision: "abstain" };
+
+		if (llmDecision.decision === "abstain") {
+			return { decision: "abstain", reason: llmDecision.reason };
+		}
 
 		// When canDeny is false, convert deny→abstain so the user gets prompted
 		if (!this.canDeny && llmDecision.decision === "deny") {

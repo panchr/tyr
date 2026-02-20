@@ -20,14 +20,18 @@ export class ClaudeProvider implements Provider {
 	private model: string;
 	private canDeny: boolean;
 
+	private conversationContext?: string;
+
 	constructor(
 		private agent: ClaudeAgent,
 		config: ClaudeConfig,
 		private verbose: boolean = false,
+		conversationContext?: string,
 	) {
 		this.model = config.model;
 		this.timeoutMs = config.timeout * S_TO_MS;
 		this.canDeny = config.canDeny;
+		this.conversationContext = conversationContext;
 	}
 
 	async checkPermission(req: PermissionRequest): Promise<ProviderResult> {
@@ -37,7 +41,12 @@ export class ClaudeProvider implements Provider {
 		if (typeof command !== "string" || command.trim() === "")
 			return { decision: "abstain" };
 
-		const prompt = buildPrompt(req, this.agent, this.canDeny);
+		const prompt = buildPrompt(
+			req,
+			this.agent,
+			this.canDeny,
+			this.conversationContext,
+		);
 
 		// Clear CLAUDECODE env var so claude -p doesn't refuse to run
 		// inside a Claude Code session (tyr is invoked as a hook).
@@ -109,6 +118,10 @@ export class ClaudeProvider implements Provider {
 
 		const llmDecision = parseLlmResponse(result.stdout);
 		if (!llmDecision) return { decision: "abstain" };
+
+		if (llmDecision.decision === "abstain") {
+			return { decision: "abstain", reason: llmDecision.reason };
+		}
 
 		// When canDeny is false, convert deny→abstain so the user gets prompted
 		if (!this.canDeny && llmDecision.decision === "deny") {

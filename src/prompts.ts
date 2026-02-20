@@ -3,7 +3,7 @@ import type { PermissionRequest } from "./types.ts";
 
 /** Expected shape of the LLM's JSON response. */
 export interface LlmDecision {
-	decision: "allow" | "deny";
+	decision: "allow" | "deny" | "abstain";
 	reason: string;
 }
 
@@ -12,6 +12,7 @@ export function buildPrompt(
 	req: PermissionRequest,
 	agent: ClaudeAgent,
 	canDeny: boolean,
+	conversationContext?: string,
 ): string {
 	const info = agent.getDebugInfo();
 	const command =
@@ -35,6 +36,15 @@ or
 or
 {"decision": "abstain", "reason": "brief explanation"}`;
 
+	const conversationSection = conversationContext
+		? `\n## Recent conversation\n${conversationContext}\n`
+		: "";
+
+	const contextRule =
+		conversationContext && !canDeny
+			? "\n- If the intent behind the command is not clear from the conversation context, abstain."
+			: "";
+
 	return `You are a pattern-matching permission checker.
 
 A coding assistant is requesting permission to run a shell command. Your job is to decide whether this command is similar to an already-allowed pattern.
@@ -43,7 +53,7 @@ A coding assistant is requesting permission to run a shell command. Your job is 
 - Working directory: ${req.cwd}
 - Tool: ${req.tool_name}
 - Command: ${command}
-
+${conversationSection}
 ## Configured permission patterns
 - Allowed patterns: ${JSON.stringify(info.allow)}
 - Denied patterns: ${JSON.stringify(info.deny)}
@@ -51,7 +61,7 @@ A coding assistant is requesting permission to run a shell command. Your job is 
 The command did not exactly match any pattern, so you must judge by similarity.
 
 ## Rules
-${rules}
+${rules}${contextRule}
 
 Respond with ONLY a JSON object in this exact format, no other text:
 ${responseFormat}`;
@@ -71,7 +81,9 @@ export function parseLlmResponse(stdout: string): LlmDecision | null {
 	try {
 		const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
 		if (
-			(parsed.decision === "allow" || parsed.decision === "deny") &&
+			(parsed.decision === "allow" ||
+				parsed.decision === "deny" ||
+				parsed.decision === "abstain") &&
 			typeof parsed.reason === "string"
 		) {
 			return { decision: parsed.decision, reason: parsed.reason };

@@ -87,6 +87,8 @@ export const TyrConfigSchema = z.object({
 	claude: ClaudeConfigSchema.default(ClaudeConfigSchema.parse({})),
 	/** OpenRouter API provider configuration. */
 	openrouter: OpenRouterConfigSchema.default(OpenRouterConfigSchema.parse({})),
+	/** Include recent conversation messages in LLM judge prompts for better context. */
+	conversationContext: z.boolean().default(false),
 	/** Include LLM prompt and parameters in log entries for debugging. */
 	verboseLog: z.boolean().default(false),
 	/** Maximum age of log entries. Entries older than this are pruned on the next tyr invocation.
