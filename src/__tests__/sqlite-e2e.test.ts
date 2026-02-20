@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { getSuggestions } from "../commands/suggest.ts";
 import { resetDbInstance } from "../db.ts";
 import { readLogEntries } from "../log.ts";
 import type { HookResponse } from "../types.ts";
@@ -180,20 +181,16 @@ describe("tyr suggest after judge sequence", () => {
 				await runJudge(JSON.stringify(req), { env });
 			}
 
-			// Run suggest against the same DB
-			const result = await runCli("suggest", ["--json", "--min-count", "5"], {
-				env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: configDir },
-			});
-			expect(result.exitCode).toBe(0);
-			const suggestions = JSON.parse(result.stdout.trim());
+			// Verify suggest can read the DB written by judge
+			process.env.TYR_DB_PATH = dbPath;
+			resetDbInstance();
+			const suggestions = getSuggestions(5, [], tempDir);
 			expect(suggestions.length).toBeGreaterThanOrEqual(1);
 
-			const bunTest = suggestions.find(
-				(s: { command: string }) => s.command === "bun test",
-			);
+			const bunTest = suggestions.find((s) => s.command === "bun test");
 			expect(bunTest).toBeDefined();
-			expect(bunTest.count).toBe(6);
-			expect(bunTest.rule).toBe("Bash(bun test)");
+			expect(bunTest?.count).toBe(6);
+			expect(bunTest?.rule).toBe("Bash(bun test)");
 		},
 		{ timeout: 30_000 },
 	);

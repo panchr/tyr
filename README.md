@@ -79,7 +79,7 @@ tyr log [--last N] [--json] [--since T] [--until T] [--decision D] [--provider P
 tyr log clear
 tyr db migrate
 tyr stats [--since T] [--json]
-tyr suggest [--apply] [--global|--project] [--min-count N] [--json]
+tyr suggest [--global|--project] [--min-count N] [--all]
 tyr debug claude-config [--cwd C]
 tyr version
 ```
@@ -231,20 +231,20 @@ Shows: total checks, decision breakdown (allow/deny/abstain/error), cache hit ra
 
 ### Suggestions
 
-Tyr can analyze your decision history and recommend new allow rules to add to Claude Code's settings:
+Tyr can analyze your decision history and start an interactive Claude session to help you refine and apply allow rules:
 
 ```bash
-# View suggestions (commands approved >= 5 times by default)
+# Start an interactive session with suggested rules (commands approved >= 5 times)
 tyr suggest
 
-# Lower the threshold
+# Lower the threshold for which commands are surfaced
 tyr suggest --min-count 3
 
-# Apply suggestions to global settings
-tyr suggest --apply --global
+# Target project settings instead of global
+tyr suggest --project
 
-# Apply to project settings
-tyr suggest --apply --project
+# Include commands from all projects, not just the current directory
+tyr suggest --all
 ```
 
 ### Debugging

@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { getSuggestions } from "../commands/suggest.ts";
 import { resetDbInstance } from "../db.ts";
 import { appendLogEntry, type LogEntry } from "../log.ts";
 import { saveEnv } from "./helpers/index.ts";
@@ -48,260 +49,118 @@ function insertEntries(...entries: LogEntry[]): void {
 	}
 }
 
-/** Write a mock global Claude settings file with allow rules.
- *  When CLAUDE_CONFIG_DIR=dir, the global settings path is dir/settings.json. */
-async function writeGlobalSettings(
-	configDir: string,
-	rules: string[],
-): Promise<string> {
-	await mkdir(configDir, { recursive: true });
-	const path = join(configDir, "settings.json");
-	await writeFile(
-		path,
-		JSON.stringify({ permissions: { allow: rules } }),
-		"utf-8",
-	);
-	return path;
-}
+describe("getSuggestions", () => {
+	test("returns empty for empty database", async () => {
+		await setupTempDb();
+		const suggestions = getSuggestions(5, []);
+		expect(suggestions).toEqual([]);
+	});
 
-describe("tyr suggest", () => {
-	test(
-		"no suggestions with empty database",
-		async () => {
-			const dbPath = await setupTempDb();
-			const result = await runCli(
-				"suggest",
-				["--json", "--no-generalize", "--all"],
-				{
-					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-				},
+	test("suggests commands approved >= min-count times", async () => {
+		await setupTempDb();
+		for (let i = 0; i < 6; i++) {
+			insertEntries(makeEntry({ tool_input: "bun test" }));
+		}
+		for (let i = 0; i < 2; i++) {
+			insertEntries(makeEntry({ tool_input: "echo hi" }));
+		}
+
+		const suggestions = getSuggestions(5, []);
+		expect(suggestions).toHaveLength(1);
+		expect(suggestions[0]?.command).toBe("bun test");
+		expect(suggestions[0]?.count).toBe(6);
+		expect(suggestions[0]?.rule).toBe("Bash(bun test)");
+	});
+
+	test("excludes commands already in allow rules", async () => {
+		await setupTempDb();
+		for (let i = 0; i < 10; i++) {
+			insertEntries(makeEntry({ tool_input: "bun test" }));
+			insertEntries(makeEntry({ tool_input: "bun lint" }));
+		}
+
+		const suggestions = getSuggestions(5, ["bun test"]);
+		expect(suggestions).toHaveLength(1);
+		expect(suggestions[0]?.command).toBe("bun lint");
+	});
+
+	test("excludes commands matched by wildcard allow rules", async () => {
+		await setupTempDb();
+		for (let i = 0; i < 10; i++) {
+			insertEntries(makeEntry({ tool_input: "bun test" }));
+			insertEntries(makeEntry({ tool_input: "bun lint" }));
+		}
+
+		const suggestions = getSuggestions(5, ["bun *"]);
+		expect(suggestions).toEqual([]);
+	});
+
+	test("ignores shadow/audit mode entries", async () => {
+		await setupTempDb();
+		for (let i = 0; i < 10; i++) {
+			insertEntries(makeEntry({ tool_input: "bun test", mode: "shadow" }));
+		}
+
+		const suggestions = getSuggestions(5, []);
+		expect(suggestions).toEqual([]);
+	});
+
+	test("ignores non-allow decisions", async () => {
+		await setupTempDb();
+		for (let i = 0; i < 10; i++) {
+			insertEntries(makeEntry({ tool_input: "rm -rf /", decision: "deny" }));
+		}
+
+		const suggestions = getSuggestions(5, []);
+		expect(suggestions).toEqual([]);
+	});
+
+	test("only suggests Bash commands", async () => {
+		await setupTempDb();
+		for (let i = 0; i < 10; i++) {
+			insertEntries(
+				makeEntry({ tool_name: "Read", tool_input: "/etc/passwd" }),
 			);
-			expect(result.exitCode).toBe(0);
-			expect(JSON.parse(result.stdout.trim())).toEqual([]);
-		},
-		{ timeout: 10_000 },
-	);
+		}
 
-	test(
-		"suggests commands approved >= min-count times",
-		async () => {
-			const dbPath = await setupTempDb();
-			// "bun test" allowed 6 times, "echo hi" allowed 2 times
-			for (let i = 0; i < 6; i++) {
-				insertEntries(makeEntry({ tool_input: "bun test" }));
-			}
-			for (let i = 0; i < 2; i++) {
-				insertEntries(makeEntry({ tool_input: "echo hi" }));
-			}
-			resetDbInstance();
+		const suggestions = getSuggestions(5, []);
+		expect(suggestions).toEqual([]);
+	});
 
-			const result = await runCli(
-				"suggest",
-				["--json", "--min-count", "5", "--no-generalize", "--all"],
-				{
-					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-				},
+	test("scopes suggestions to cwd when provided", async () => {
+		await setupTempDb();
+		for (let i = 0; i < 10; i++) {
+			insertEntries(
+				makeEntry({ tool_input: "bun test", cwd: "/other/project" }),
 			);
-			expect(result.exitCode).toBe(0);
-			const suggestions = JSON.parse(result.stdout.trim());
-			expect(suggestions).toHaveLength(1);
-			expect(suggestions[0].command).toBe("bun test");
-			expect(suggestions[0].count).toBe(6);
-			expect(suggestions[0].rule).toBe("Bash(bun test)");
-		},
-		{ timeout: 10_000 },
-	);
+		}
+		for (let i = 0; i < 10; i++) {
+			insertEntries(makeEntry({ tool_input: "bun lint", cwd: "/test/dir" }));
+		}
 
-	test(
-		"excludes commands already in allow rules",
-		async () => {
-			const dbPath = await setupTempDb();
-			// Both commands approved enough times
-			for (let i = 0; i < 10; i++) {
-				insertEntries(makeEntry({ tool_input: "bun test" }));
-				insertEntries(makeEntry({ tool_input: "bun lint" }));
-			}
-			resetDbInstance();
+		const scoped = getSuggestions(5, [], "/test/dir");
+		expect(scoped).toHaveLength(1);
+		expect(scoped[0]?.command).toBe("bun lint");
 
-			// "bun test" already allowed
-			await writeGlobalSettings(tempDir, ["Bash(bun test)"]);
+		const all = getSuggestions(5, []);
+		expect(all).toHaveLength(2);
+	});
 
-			const result = await runCli(
-				"suggest",
-				["--json", "--min-count", "5", "--no-generalize", "--all"],
-				{
-					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-				},
+	test("includes commands from subdirectories when scoped", async () => {
+		await setupTempDb();
+		for (let i = 0; i < 10; i++) {
+			insertEntries(
+				makeEntry({ tool_input: "bun test", cwd: "/test/dir/subdir" }),
 			);
-			expect(result.exitCode).toBe(0);
-			const suggestions = JSON.parse(result.stdout.trim());
-			expect(suggestions).toHaveLength(1);
-			expect(suggestions[0].command).toBe("bun lint");
-		},
-		{ timeout: 10_000 },
-	);
+		}
 
-	test(
-		"excludes commands matched by wildcard allow rules",
-		async () => {
-			const dbPath = await setupTempDb();
-			for (let i = 0; i < 10; i++) {
-				insertEntries(makeEntry({ tool_input: "bun test" }));
-				insertEntries(makeEntry({ tool_input: "bun lint" }));
-			}
-			resetDbInstance();
+		const suggestions = getSuggestions(5, [], "/test/dir");
+		expect(suggestions).toHaveLength(1);
+		expect(suggestions[0]?.command).toBe("bun test");
+	});
+});
 
-			// Wildcard covers both
-			await writeGlobalSettings(tempDir, ["Bash(bun *)"]);
-
-			const result = await runCli(
-				"suggest",
-				["--json", "--min-count", "5", "--no-generalize", "--all"],
-				{
-					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-				},
-			);
-			expect(result.exitCode).toBe(0);
-			const suggestions = JSON.parse(result.stdout.trim());
-			expect(suggestions).toEqual([]);
-		},
-		{ timeout: 10_000 },
-	);
-
-	test(
-		"ignores shadow/audit mode entries",
-		async () => {
-			const dbPath = await setupTempDb();
-			for (let i = 0; i < 10; i++) {
-				insertEntries(makeEntry({ tool_input: "bun test", mode: "shadow" }));
-			}
-			resetDbInstance();
-
-			const result = await runCli(
-				"suggest",
-				["--json", "--min-count", "5", "--no-generalize", "--all"],
-				{
-					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-				},
-			);
-			expect(result.exitCode).toBe(0);
-			expect(JSON.parse(result.stdout.trim())).toEqual([]);
-		},
-		{ timeout: 10_000 },
-	);
-
-	test(
-		"ignores non-allow decisions",
-		async () => {
-			const dbPath = await setupTempDb();
-			for (let i = 0; i < 10; i++) {
-				insertEntries(makeEntry({ tool_input: "rm -rf /", decision: "deny" }));
-			}
-			resetDbInstance();
-
-			const result = await runCli(
-				"suggest",
-				["--json", "--min-count", "5", "--no-generalize", "--all"],
-				{
-					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-				},
-			);
-			expect(result.exitCode).toBe(0);
-			expect(JSON.parse(result.stdout.trim())).toEqual([]);
-		},
-		{ timeout: 10_000 },
-	);
-
-	test(
-		"--apply writes rules to global settings",
-		async () => {
-			const dbPath = await setupTempDb();
-			for (let i = 0; i < 10; i++) {
-				insertEntries(makeEntry({ tool_input: "bun test" }));
-			}
-			resetDbInstance();
-
-			const result = await runCli(
-				"suggest",
-				["--apply", "--global", "--min-count", "5", "--no-generalize", "--all"],
-				{ env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir } },
-			);
-			expect(result.exitCode).toBe(0);
-			expect(result.stdout).toContain("Bash(bun test)");
-
-			// Verify the settings file was written
-			const settingsPath = join(tempDir, "settings.json");
-			const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
-			expect(settings.permissions.allow).toContain("Bash(bun test)");
-		},
-		{ timeout: 10_000 },
-	);
-
-	test(
-		"--apply merges without clobbering existing rules",
-		async () => {
-			const dbPath = await setupTempDb();
-			for (let i = 0; i < 10; i++) {
-				insertEntries(makeEntry({ tool_input: "bun test" }));
-			}
-			resetDbInstance();
-
-			// Pre-existing rule
-			const settingsPath = join(tempDir, "settings.json");
-			await mkdir(tempDir, { recursive: true });
-			await writeFile(
-				settingsPath,
-				JSON.stringify({
-					permissions: { allow: ["Bash(git status)"] },
-				}),
-				"utf-8",
-			);
-
-			const result = await runCli(
-				"suggest",
-				["--apply", "--global", "--min-count", "5", "--no-generalize", "--all"],
-				{ env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir } },
-			);
-			expect(result.exitCode).toBe(0);
-
-			const settings = JSON.parse(await readFile(settingsPath, "utf-8"));
-			expect(settings.permissions.allow).toContain("Bash(git status)");
-			expect(settings.permissions.allow).toContain("Bash(bun test)");
-		},
-		{ timeout: 10_000 },
-	);
-
-	test(
-		"dry-run has no side effects",
-		async () => {
-			const dbPath = await setupTempDb();
-			for (let i = 0; i < 10; i++) {
-				insertEntries(makeEntry({ tool_input: "bun test" }));
-			}
-			resetDbInstance();
-
-			const settingsPath = join(tempDir, "settings.json");
-			await mkdir(tempDir, { recursive: true });
-			await writeFile(settingsPath, "{}", "utf-8");
-			const before = await readFile(settingsPath, "utf-8");
-
-			const result = await runCli(
-				"suggest",
-				["--min-count", "5", "--no-generalize", "--all"],
-				{
-					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-				},
-			);
-			expect(result.exitCode).toBe(0);
-			expect(result.stdout).toContain("Bash(bun test)");
-			expect(result.stdout).toContain("--apply");
-
-			const after = await readFile(settingsPath, "utf-8");
-			expect(after).toBe(before);
-		},
-		{ timeout: 10_000 },
-	);
-
+describe("tyr suggest CLI", () => {
 	test(
 		"rejects --global and --project together",
 		async () => {
@@ -344,94 +203,14 @@ describe("tyr suggest", () => {
 	);
 
 	test(
-		"only suggests Bash commands",
+		"prints message when no suggestions found",
 		async () => {
 			const dbPath = await setupTempDb();
-			for (let i = 0; i < 10; i++) {
-				insertEntries(
-					makeEntry({ tool_name: "Read", tool_input: "/etc/passwd" }),
-				);
-			}
-			resetDbInstance();
-
-			const result = await runCli(
-				"suggest",
-				["--json", "--min-count", "5", "--no-generalize", "--all"],
-				{
-					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-				},
-			);
+			const result = await runCli("suggest", ["--all"], {
+				env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
+			});
 			expect(result.exitCode).toBe(0);
-			expect(JSON.parse(result.stdout.trim())).toEqual([]);
-		},
-		{ timeout: 10_000 },
-	);
-
-	test(
-		"human-readable output shows rules and counts",
-		async () => {
-			const dbPath = await setupTempDb();
-			for (let i = 0; i < 7; i++) {
-				insertEntries(makeEntry({ tool_input: "bun test" }));
-			}
-			resetDbInstance();
-
-			const result = await runCli(
-				"suggest",
-				["--min-count", "5", "--no-generalize", "--all"],
-				{
-					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-				},
-			);
-			expect(result.exitCode).toBe(0);
-			expect(result.stdout).toContain("Bash(bun test)");
-			expect(result.stdout).toContain("7 approvals");
-		},
-		{ timeout: 10_000 },
-	);
-
-	test(
-		"scopes suggestions to current project by default",
-		async () => {
-			const dbPath = await setupTempDb();
-			// Commands from a different project
-			for (let i = 0; i < 10; i++) {
-				insertEntries(
-					makeEntry({ tool_input: "bun test", cwd: "/other/project" }),
-				);
-			}
-			// Commands from the subprocess cwd (repo root)
-			for (let i = 0; i < 10; i++) {
-				insertEntries(
-					makeEntry({ tool_input: "bun lint", cwd: process.cwd() }),
-				);
-			}
-			resetDbInstance();
-
-			// Without --all, only cwd-matching commands appear
-			const scoped = await runCli(
-				"suggest",
-				["--json", "--min-count", "5", "--no-generalize"],
-				{
-					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-				},
-			);
-			expect(scoped.exitCode).toBe(0);
-			const scopedSuggestions = JSON.parse(scoped.stdout.trim());
-			expect(scopedSuggestions).toHaveLength(1);
-			expect(scopedSuggestions[0].command).toBe("bun lint");
-
-			// With --all, both appear
-			const all = await runCli(
-				"suggest",
-				["--json", "--min-count", "5", "--no-generalize", "--all"],
-				{
-					env: { TYR_DB_PATH: dbPath, CLAUDE_CONFIG_DIR: tempDir },
-				},
-			);
-			expect(all.exitCode).toBe(0);
-			const allSuggestions = JSON.parse(all.stdout.trim());
-			expect(allSuggestions).toHaveLength(2);
+			expect(result.stdout).toContain("No new suggestions found.");
 		},
 		{ timeout: 10_000 },
 	);

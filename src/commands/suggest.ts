@@ -7,16 +7,10 @@ import {
 	settingsPaths,
 } from "../agents/claude.ts";
 import { rejectUnknownArgs } from "../args.ts";
-import { readConfig } from "../config.ts";
 import { closeDb, getDb } from "../db.ts";
-import { readSettings, writeSettings } from "../install.ts";
-import { buildGeneralizePrompt, parseGeneralizeResponse } from "../prompts.ts";
+import { readSettings } from "../install.ts";
 
 const suggestArgs = {
-	apply: {
-		type: "boolean" as const,
-		description: "Write suggestions into Claude's settings.json",
-	},
 	global: {
 		type: "boolean" as const,
 		description: "Target global (~/.claude/settings.json)",
@@ -28,14 +22,6 @@ const suggestArgs = {
 	"min-count": {
 		type: "string" as const,
 		description: "Minimum approval count to suggest (default: 5)",
-	},
-	json: {
-		type: "boolean" as const,
-		description: "Output raw JSON",
-	},
-	"no-generalize": {
-		type: "boolean" as const,
-		description: "Skip LLM generalization of suggestions",
 	},
 	all: {
 		type: "boolean" as const,
@@ -106,92 +92,35 @@ export function getSuggestions(
 	return suggestions;
 }
 
-const GENERALIZE_TIMEOUT_MS = 30_000;
-
-/** Use an LLM to generalize raw suggestions into broader glob patterns.
- *  Falls back to the original suggestions on any error. */
-export async function generalizeSuggestions(
+function buildSuggestSystemPrompt(
 	suggestions: Suggestion[],
-	model: string,
-): Promise<Suggestion[]> {
-	if (suggestions.length === 0) return suggestions;
+	settingsPath: string,
+): string {
+	const commandList = suggestions
+		.map((s) => `- \`${s.command}\` (approved ${s.count} times)`)
+		.join("\n");
 
-	const prompt = buildGeneralizePrompt(
-		suggestions.map((s) => ({ command: s.command, count: s.count })),
-	);
+	return `You are helping configure permission rules for Claude Code.
 
-	const env: Record<string, string | undefined> = {
-		...process.env,
-		CLAUDECODE: undefined,
-	};
+The user has been manually approving shell commands while using Claude Code. Tyr has identified frequently-approved commands that could be added as permanent allow rules.
 
-	const proc = Bun.spawn(
-		[
-			"claude",
-			"-p",
-			"--output-format",
-			"text",
-			"--no-session-persistence",
-			"--model",
-			model,
-		],
-		{
-			stdin: new Response(prompt).body,
-			stdout: "pipe",
-			stderr: "pipe",
-			env,
-		},
-	);
+## Frequently Approved Commands (not yet in allow rules)
 
-	let timer: Timer | undefined;
-	const result = await Promise.race([
-		(async () => {
-			const [stdout] = await Promise.all([
-				new Response(proc.stdout).text(),
-				new Response(proc.stderr).text(),
-			]);
-			const exitCode = await proc.exited;
-			return { stdout, exitCode, timedOut: false };
-		})(),
-		new Promise<{ stdout: string; exitCode: number; timedOut: boolean }>(
-			(resolve) => {
-				timer = setTimeout(() => {
-					proc.kill();
-					resolve({ stdout: "", exitCode: -1, timedOut: true });
-				}, GENERALIZE_TIMEOUT_MS);
-			},
-		),
-	]);
-	clearTimeout(timer);
+${commandList}
 
-	if (result.timedOut || result.exitCode !== 0) return suggestions;
+## Settings File
+- Path: ${settingsPath}
+- Format: JSON with a \`permissions.allow\` array of strings
+- Each rule is a string like \`Bash(pattern)\` where \`pattern\` can use \`*\` as a glob wildcard
+- Example: \`Bash(bun *)\` allows any command starting with \`bun \`
 
-	const generalized = parseGeneralizeResponse(result.stdout);
-	if (!generalized) return suggestions;
+## Your Task
+Help the user decide which commands to add as allow rules:
+1. Suggest generalized glob patterns that group similar commands (e.g., "bun test" and "bun lint" → "Bash(bun *)")
+2. Explain what each pattern would match
+3. When the user is ready, write the rules to the settings file at the path above
 
-	return generalized
-		.map((g) => ({
-			command: g.pattern,
-			count: g.count,
-			rule: `Bash(${g.pattern})`,
-		}))
-		.sort((a, b) => b.count - a.count);
-}
-
-/** Merge new allow rules into existing settings without clobbering. */
-export function mergeAllowRules(
-	settings: Record<string, unknown>,
-	rules: string[],
-): Record<string, unknown> {
-	const result = { ...settings };
-	const perms = (result.permissions ?? {}) as Record<string, unknown>;
-	const existing = Array.isArray(perms.allow) ? (perms.allow as string[]) : [];
-
-	const existingSet = new Set(existing);
-	const merged = [...existing, ...rules.filter((r) => !existingSet.has(r))];
-
-	result.permissions = { ...perms, allow: merged };
-	return result;
+Be concise. Start by presenting your suggested rules and ask if the user wants to adjust them.`;
 }
 
 export default defineCommand({
@@ -217,84 +146,42 @@ export default defineCommand({
 			return;
 		}
 
-		try {
-			// Load all allow patterns from Claude settings to filter suggestions
-			const allPaths = settingsPaths(process.cwd());
-			const allowPatterns: string[] = [];
-			for (const path of allPaths) {
-				const settings = await readSettings(path);
-				const perms = settings.permissions as
-					| Record<string, unknown>
-					| undefined;
-				if (perms && Array.isArray(perms.allow)) {
-					allowPatterns.push(...extractBashPatterns(perms.allow));
-				}
+		const allPaths = settingsPaths(process.cwd());
+		const allowPatterns: string[] = [];
+		for (const path of allPaths) {
+			const settings = await readSettings(path);
+			const perms = settings.permissions as Record<string, unknown> | undefined;
+			if (perms && Array.isArray(perms.allow)) {
+				allowPatterns.push(...extractBashPatterns(perms.allow));
 			}
-
-			const cwdFilter = args.all ? undefined : process.cwd();
-			const rawSuggestions = getSuggestions(minCount, allowPatterns, cwdFilter);
-
-			let suggestions = rawSuggestions;
-			if (!args["no-generalize"] && rawSuggestions.length > 0) {
-				let model = "haiku";
-				try {
-					const config = await readConfig();
-					model = config.claude.model;
-				} catch {
-					// use default model
-				}
-				try {
-					suggestions = await generalizeSuggestions(rawSuggestions, model);
-				} catch {
-					// fall back to raw suggestions
-				}
-			}
-
-			if (args.json) {
-				console.log(JSON.stringify(suggestions));
-				return;
-			}
-
-			if (suggestions.length === 0) {
-				console.log("No new suggestions found.");
-				return;
-			}
-
-			if (!args.apply) {
-				console.log(
-					`Suggested allow rules (commands approved >= ${minCount} times):`,
-				);
-				console.log();
-				for (const s of suggestions) {
-					console.log(`  ${s.rule}  (${s.count} approvals)`);
-				}
-				console.log();
-				console.log("Run with --apply to add these rules to Claude settings.");
-				return;
-			}
-
-			// Apply mode: write rules to settings
-			const scope: "global" | "project" = args.project ? "project" : "global";
-			const configDir =
-				process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude");
-			const settingsPath =
-				scope === "global"
-					? join(configDir, "settings.json")
-					: join(process.cwd(), ".claude", "settings.json");
-			const settings = await readSettings(settingsPath);
-
-			const newRules = suggestions.map((s) => s.rule);
-			const merged = mergeAllowRules(settings, newRules);
-			await writeSettings(settingsPath, merged);
-
-			console.log(
-				`Added ${newRules.length} allow rule(s) to ${scope} settings (${settingsPath}):`,
-			);
-			for (const rule of newRules) {
-				console.log(`  ${rule}`);
-			}
-		} finally {
-			closeDb();
 		}
+
+		const cwdFilter = args.all ? undefined : process.cwd();
+		const suggestions = getSuggestions(minCount, allowPatterns, cwdFilter);
+		closeDb();
+
+		if (suggestions.length === 0) {
+			console.log("No new suggestions found.");
+			return;
+		}
+
+		const scope: "global" | "project" = args.project ? "project" : "global";
+		const configDir =
+			process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude");
+		const settingsPath =
+			scope === "global"
+				? join(configDir, "settings.json")
+				: join(process.cwd(), ".claude", "settings.json");
+
+		const systemPrompt = buildSuggestSystemPrompt(suggestions, settingsPath);
+
+		const proc = Bun.spawn(["claude", "--append-system-prompt", systemPrompt], {
+			stdin: "inherit",
+			stdout: "inherit",
+			stderr: "inherit",
+			env: { ...process.env, CLAUDECODE: undefined },
+		});
+
+		process.exitCode = await proc.exited;
 	},
 });
