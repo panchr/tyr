@@ -1,68 +1,62 @@
 # tyr
 
-> **Experimental** — tyr is under active development. The API, configuration schema, and CLI interface may change without notice.
+> **Experimental** — tyr is under active development. The API, configuration schema, and CLI interface may change without notice. If upgrading between minor versions, it's highly possible that a previous configuration needs some manual update.
 
-Intelligent permission management for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) hooks. Tyr intercepts `PermissionRequest` events from Claude Code and evaluates them against your configured allow/deny patterns, so you can auto-approve safe commands and block dangerous ones without manual intervention.
+Tyr is a CLI for intelligently managing permissions for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). It is added as a hook on `PermissionRequest` events and evaluates them against configured allow/deny patterns. In the standard mode, this evaluation is done by Claude (or another LLM) by comparing the requested Bash command to the user's configuration. The hook will auto-approve commands that fuzzily match the configuration, without manual intervention.
 
-Named after the [Norse god of justice](https://en.wikipedia.org/wiki/T%C3%BDr).
+The goal is to reduce the number of permission prompts sent to the user. As of now, Tyr only evaluates `Bash` tool requests; it abstains on all other tools.
 
-## How it works
-
-Tyr registers itself as a Claude Code [hook](https://docs.anthropic.com/en/docs/claude-code/hooks) on the `PermissionRequest` event. When Claude Code asks to run a shell command, tyr:
-
-1. Reads your Claude Code allow/deny permission patterns
-2. Parses compound commands (e.g. `git add . && git commit`) and checks each component
-3. Optionally asks an LLM to evaluate ambiguous commands against your patterns
-4. Returns allow/deny/abstain back to Claude Code
+It is named after the [Norse god of justice](https://en.wikipedia.org/wiki/T%C3%BDr).
 
 ## Why tyr?
 
-Claude Code's `--dangerously-skip-permissions` flag gives the agent full autonomy — it can run any command without asking. That's fast, but risky: a single bad tool call can delete files, leak secrets, or break your environment with no audit trail.
+Claude Code's `--dangerously-skip-permissions` flag gives the agent full autonomy -- it can run any command without asking. That's risky: a single bad tool call can delete files, leak secrets, or break your environment.
 
-Tyr gives you the same automation benefits with granular control and full observability. You choose how much autonomy to grant:
+Tyr gives a configurable degree of autonomy to Claude:
 
 | Mode | What happens | Use case |
 |------|-------------|----------|
-| **Audit** (`tyr install --audit`) | Logs every permission request without evaluating it | Understand what Claude Code is doing before changing anything |
-| **Shadow** (`tyr install --shadow`) | Runs the full allow/deny pipeline but always abstains to Claude Code | Validate your rules against real traffic before going live |
+| **Audit** (`tyr install --audit`) | Logs every permission request without evaluating it | Understand what Claude Code is doing without performing any of tyr's logic on the request |
+| **Shadow** (`tyr install --shadow`) | Runs the full allow/deny pipeline but always abstains to Claude Code | Validate your rules against real requests, before an impact |
 | **Active** (`tyr install`) | Evaluates requests and enforces allow/deny decisions | Full automation with pattern-based guardrails |
 
 Every decision is logged to a SQLite database, so you can review what was allowed, denied, or abstained — and why.
 
-## Prerequisites
+## Quickstart
 
-- [Bun](https://bun.sh) runtime
-- Claude Code (for integration — tyr can be tested standalone)
-
-## Install
+Requires [Bun](https://bun.sh) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
 
 ```bash
-# Clone and install dependencies
-git clone git@github.com:panchr/tyr.git && cd tyr
-bun install
+# Install tyr
+bun install -g @panchr/tyr
 
-# Build and install the binary to /usr/local/bin
-bun run build
-
-# Register the hook in your project (writes to .claude/settings.json)
+# Register the hook (run this inside your project directory)
 tyr install
 
-# Or install globally (writes to ~/.claude/settings.json)
+# Start a Claude Code session and work as usual — tyr runs automatically.
+# When you're done, review what happened:
+tyr log
+tyr stats
+```
+
+That's it. Tyr evaluates every permission request against your Claude Code allow/deny patterns and logs the result. Commands that match an allowed pattern are auto-approved; everything else falls through to Claude Code's normal prompt.
+
+To install globally (applies to all projects):
+
+```bash
 tyr install --global
 ```
 
 To remove:
 
 ```bash
-tyr uninstall
-tyr uninstall --global
+tyr uninstall          # project
+tyr uninstall --global # global
 ```
 
 Use `--dry-run` with either command to preview changes without modifying anything.
 
 ## Usage
-
-Once installed, tyr runs automatically as a Claude Code hook. No manual invocation needed.
 
 ### Commands
 
@@ -90,7 +84,7 @@ Tyr reads its own config from `~/.config/tyr/config.json` (overridable via `TYR_
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `providers` | string[] | `["chained-commands"]` | Ordered list of providers to run |
+| `providers` | string[] | `["chained-commands", "claude"]` | Ordered list of providers to run |
 | `failOpen` | boolean | `false` | Approve on error instead of failing closed |
 | `claude.model` | string | `"haiku"` | Model identifier for the Claude CLI |
 | `claude.timeout` | number | `10` | Claude request timeout in seconds |
@@ -124,11 +118,11 @@ Existing process environment variables take precedence over `.env` values.
 
 ### Providers
 
-Tyr uses a **pipeline architecture** where providers are evaluated in sequence. The first provider to return a definitive `allow` or `deny` wins — remaining providers are skipped. If all providers `abstain`, the request falls through to Claude Code's default behavior (prompting the user), unless `failOpen` is `true`, in which case the request is approved.
+Tyr uses a **pipeline architecture** where providers are evaluated in sequence. The first provider to return a definitive `allow` or `deny` wins --- remaining providers are skipped. If all providers `abstain`, the request falls through to Claude Code's default behavior (prompting the user), unless `failOpen` is `true`, in which case the request is approved.
 
-Configure the pipeline via the `providers` array. **Order matters** — providers run left to right.
+Configure the pipeline via the `providers` array. **Order matters** -- providers run in order.
 
-Valid provider names: `cache`, `chained-commands`, `claude`, `openrouter`.
+Valid providers are listed below.
 
 #### `cache`
 
@@ -138,25 +132,23 @@ Caches prior decisions in SQLite. If the same command was previously allowed or 
 
 #### `chained-commands`
 
-Parses compound shell commands (`&&`, `||`, `|`, `;`, subshells, command substitution) and checks each sub-command against your Claude Code allow/deny permission patterns (merged from all settings files).
+Parses compound shell commands (`&&`, `||`, `|`, `;`, subshells, command substitution) and checks each sub-command against your Claude Code allow/deny permission patterns.
 
 - **Allow:** All sub-commands match an allow pattern
-- **Deny:** Any sub-command matches a deny pattern
+- **Deny:** _Any_ sub-command matches a deny pattern
 - **Abstain:** Any sub-command has no matching pattern
-
-Only evaluates `Bash` tool requests; abstains on all other tools.
 
 #### `claude`
 
-Sends ambiguous commands to a local Claude CLI for semantic evaluation. The LLM sees your permission rules, the command, and the working directory, then reasons about whether the command is safe.
+Sends ambiguous commands to the local Claude CLI for semantic evaluation. The LLM sees your permission rules, the command, and the working directory, then reasons about whether the command is safe.
 
-When `claude.canDeny` is `false` (the default), the LLM can only approve commands — deny decisions are converted to abstain, forcing the user to decide. Set `canDeny: true` for stricter enforcement.
+When `claude.canDeny` is `false` (the default), the LLM can only approve commands -- deny decisions are converted to abstain, forcing the user to decide. Set `canDeny: true` for stricter enforcement.
 
-When `conversationContext` is enabled, the LLM also sees recent conversation messages from the Claude Code session. This lets it allow commands that don't match any configured pattern if the user clearly requested the action and it's a typical, safe development command. The deny list is always checked first — no amount of context overrides a denied pattern.
+When `conversationContext` is enabled, the LLM also sees recent conversation messages from the Claude Code session. This lets it allow commands that don't match any configured pattern if the user clearly requested the action and it's a typical, safe development command. The deny list is always checked first -- no amount of context overrides a denied pattern.
 
-Requires a local `claude` CLI binary (installed with Claude Code). Timeouts and errors are treated as abstain.
+Requires a local `claude` CLI binary. While this is somewhat slow due to the subprocess required to run `claude` (generally a decision is made in about 5 seconds), this slowness is acceptable given that it will still be faster than a human understanding and approving a command.
 
-Only evaluates `Bash` tool requests; abstains on all other tools.
+The main benefit of this provider is that it reuses the authentication that `claude` is already configured with, whether that's an Anthropic API key or a subscription.
 
 #### `openrouter`
 
@@ -169,13 +161,13 @@ Only evaluates `Bash` tool requests; abstains on all other tools.
 #### Pipeline examples
 
 ```jsonc
-// Safe & fast (default) — pattern matching only
+// Safe & fast (default) -- pattern matching only
 { "providers": ["chained-commands"] }
 
-// With caching — faster repeated evaluations
+// With caching -- faster repeated evaluations
 { "providers": ["cache", "chained-commands"] }
 
-// Full pipeline — patterns first, then Claude for ambiguous commands
+// Full pipeline -- patterns first, then Claude for ambiguous commands
 { "providers": ["cache", "chained-commands", "claude"] }
 
 // Using OpenRouter instead of local Claude
@@ -250,20 +242,9 @@ tyr suggest --project
 tyr suggest --all
 ```
 
-### Debugging
-
-```bash
-# Print the merged Claude Code permission config for the current project
-tyr debug claude-config
-
-# Print for a different project directory
-tyr debug claude-config --cwd /path/to/project
-
-# Print tyr version and runtime info
-tyr version
-```
-
 ### Database migrations
+
+When upgrading from one `tyr` version to another, run
 
 ```bash
 # Run pending schema migrations
