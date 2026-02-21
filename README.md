@@ -133,7 +133,7 @@ Same semantics as the `claude` provider but uses the OpenRouter HTTP API instead
 
 ### Permission prompt delay
 
-When tyr is installed as a hook, Claude Code waits for the hook to return before showing the permission prompt. If the pipeline takes a few seconds (e.g., when using the `claude` or `openrouter` provider), you'll see a brief delay before the prompt appears or the command is auto-approved. This is normal — tyr is evaluating the command in the background.
+When tyr is installed as a hook, Claude Code shows the permission prompt and calls the hook concurrently. You'll see the prompt appear immediately while tyr evaluates the command in the background. If the hook decides to allow or deny, the prompt is automatically resolved; if the hook abstains, the prompt remains for you to decide manually.
 
 ## Development
 
