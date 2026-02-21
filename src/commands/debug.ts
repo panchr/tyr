@@ -1,5 +1,6 @@
 import { defineCommand } from "citty";
 import { ClaudeAgent } from "../agents/claude.ts";
+import { getRepoRoot } from "../repo.ts";
 
 const claudeConfig = defineCommand({
 	meta: {
@@ -13,7 +14,7 @@ const claudeConfig = defineCommand({
 		},
 	},
 	async run({ args }) {
-		const cwd = (args.cwd as string | undefined) ?? process.cwd();
+		const cwd = (args.cwd as string | undefined) ?? getRepoRoot();
 		const agent = new ClaudeAgent();
 		await agent.init(cwd);
 		const info = agent.getDebugInfo();

@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { getRepoRoot } from "./repo.ts";
 
 export type JudgeMode = "shadow" | "audit" | undefined;
 
@@ -20,7 +21,7 @@ export function getSettingsPath(scope: "global" | "project"): string {
 	if (scope === "global") {
 		return join(homedir(), ".claude", "settings.json");
 	}
-	return join(process.cwd(), ".claude", "settings.json");
+	return join(getRepoRoot(), ".claude", "settings.json");
 }
 
 /** Read and parse a settings.json, returning {} if it doesn't exist. */

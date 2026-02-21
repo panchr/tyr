@@ -9,6 +9,7 @@ import {
 import { rejectUnknownArgs } from "../args.ts";
 import { closeDb, getDb } from "../db.ts";
 import { readSettings } from "../install.ts";
+import { getRepoRoot } from "../repo.ts";
 
 const suggestArgs = {
 	global: {
@@ -146,7 +147,8 @@ export default defineCommand({
 			return;
 		}
 
-		const allPaths = settingsPaths(process.cwd());
+		const repoRoot = getRepoRoot();
+		const allPaths = settingsPaths(repoRoot);
 		const allowPatterns: string[] = [];
 		for (const path of allPaths) {
 			const settings = await readSettings(path);
@@ -156,7 +158,7 @@ export default defineCommand({
 			}
 		}
 
-		const cwdFilter = args.all ? undefined : process.cwd();
+		const cwdFilter = args.all ? undefined : repoRoot;
 		const suggestions = getSuggestions(minCount, allowPatterns, cwdFilter);
 		closeDb();
 
@@ -171,7 +173,7 @@ export default defineCommand({
 		const settingsPath =
 			scope === "global"
 				? join(configDir, "settings.json")
-				: join(process.cwd(), ".claude", "settings.json");
+				: join(repoRoot, ".claude", "settings.json");
 
 		const systemPrompt = buildSuggestSystemPrompt(suggestions, settingsPath);
 

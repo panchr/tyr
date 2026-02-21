@@ -10,6 +10,7 @@ import {
 	readLogEntries,
 	truncateOldLogs,
 } from "../log.ts";
+import { getRepoRoot } from "../repo.ts";
 
 function formatTime(ts: number): string {
 	const d = new Date(ts);
@@ -145,7 +146,7 @@ export default defineCommand({
 		}
 
 		// Default to current directory unless --all or --cwd is provided
-		const cwdFilter = args.all ? undefined : (args.cwd ?? process.cwd());
+		const cwdFilter = args.all ? undefined : (args.cwd ?? getRepoRoot());
 
 		const entries = readLogEntries({
 			last: last > 0 ? last : undefined,
