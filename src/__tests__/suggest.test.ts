@@ -217,18 +217,27 @@ describe("tyr suggest CLI", () => {
 });
 
 describe("buildSuggestPrompt", () => {
-	test("includes commands and settings path", () => {
+	test("includes commands, target path, and settings file list", () => {
+		const paths = [
+			"/project/.claude/settings.json",
+			"/home/user/.claude/settings.json",
+		];
 		const prompt = buildSuggestPrompt(
 			[
 				{ command: "bun test", count: 10, rule: "Bash(bun test)" },
 				{ command: "bun lint", count: 7, rule: "Bash(bun lint)" },
 			],
-			"/home/user/.claude/settings.json",
+			"/project/.claude/settings.json",
+			paths,
 		);
 		expect(prompt).toContain("`bun test` (approved 10 times)");
 		expect(prompt).toContain("`bun lint` (approved 7 times)");
-		expect(prompt).toContain("/home/user/.claude/settings.json");
 		expect(prompt).toContain("Bash(pattern)");
-		expect(prompt).toContain("read the settings file first");
+		expect(prompt).toContain(
+			"Write new rules to: `/project/.claude/settings.json`",
+		);
+		for (const p of paths) {
+			expect(prompt).toContain(p);
+		}
 	});
 });

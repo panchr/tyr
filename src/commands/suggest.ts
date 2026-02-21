@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { defineCommand } from "citty";
@@ -95,11 +96,14 @@ export function getSuggestions(
 
 export function buildSuggestPrompt(
 	suggestions: Suggestion[],
-	settingsPath: string,
+	targetPath: string,
+	allPaths: string[],
 ): string {
 	const commandList = suggestions
 		.map((s) => `- \`${s.command}\` (approved ${s.count} times)`)
 		.join("\n");
+
+	const pathList = allPaths.map((p) => `- \`${p}\``).join("\n");
 
 	return `I've been manually approving shell commands while using Claude Code. Tyr has identified frequently-approved commands that could be added as permanent allow rules.
 
@@ -107,18 +111,24 @@ export function buildSuggestPrompt(
 
 ${commandList}
 
-## Settings File
-- Path: ${settingsPath}
+## Settings Files
+
+Claude Code reads permissions from multiple settings files:
+
+${pathList}
+
+## Target Settings File
+- Write new rules to: \`${targetPath}\`
 - Format: JSON with a \`permissions.allow\` array of strings
 - Each rule MUST use the exact format \`Bash(pattern)\` where \`pattern\` can use \`*\` as a glob wildcard
 - Example: \`Bash(bun *)\` allows any command starting with \`bun \`
-- IMPORTANT: Before writing rules, read the settings file first to check the existing format and merge with any existing \`permissions.allow\` entries
+- IMPORTANT: Before writing rules, read the settings files listed above (those that exist) to understand existing permissions, then merge new rules into the target file's \`permissions.allow\` array
 
 ## Instructions
 Help me decide which commands to add as allow rules:
 1. Suggest generalized glob patterns that group similar commands (e.g., "bun test" and "bun lint" → "Bash(bun *)")
 2. Explain what each pattern would match
-3. When I'm ready, write the rules to the settings file at the path above
+3. When I'm ready, write the rules to the target settings file
 
 Be concise. Start by presenting your suggested rules and ask if I want to adjust them.`;
 }
@@ -166,15 +176,16 @@ export default defineCommand({
 			return;
 		}
 
-		const scope: "global" | "project" = args.project ? "project" : "global";
+		const scope: "global" | "project" = args.global ? "global" : "project";
 		const configDir =
 			process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude");
-		const settingsPath =
+		const targetPath =
 			scope === "global"
 				? join(configDir, "settings.json")
 				: join(repoRoot, ".claude", "settings.json");
 
-		const prompt = buildSuggestPrompt(suggestions, settingsPath);
+		const existingPaths = allPaths.filter((p) => existsSync(p));
+		const prompt = buildSuggestPrompt(suggestions, targetPath, existingPaths);
 
 		const proc = Bun.spawn(["claude", prompt], {
 			stdin: "inherit",
