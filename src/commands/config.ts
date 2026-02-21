@@ -168,6 +168,30 @@ const env = defineCommand({
 	},
 });
 
+const EXAMPLE_CONFIG = `{
+  // Pattern matching with caching for fast repeated evaluations.
+  // Add "claude" or "openrouter" after "chained-commands" to use an
+  // LLM for commands that don't match any allow/deny pattern.
+  "providers": ["cache", "chained-commands"],
+
+  // Fail closed: deny on error rather than auto-approving.
+  "failOpen": false,
+
+  // Auto-prune log entries older than 30 days.
+  "logRetention": "30d"
+}
+`;
+
+const example = defineCommand({
+	meta: {
+		name: "example",
+		description: "Print a recommended example config",
+	},
+	run() {
+		process.stdout.write(EXAMPLE_CONFIG);
+	},
+});
+
 const schema = defineCommand({
 	meta: {
 		name: "schema",
@@ -198,6 +222,7 @@ export default defineCommand({
 		show,
 		set,
 		path,
+		example,
 		schema,
 		env,
 	},

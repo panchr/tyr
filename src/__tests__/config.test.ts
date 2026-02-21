@@ -15,7 +15,11 @@ import {
 	writeConfig,
 	writeEnvVar,
 } from "../config.ts";
-import { DEFAULT_TYR_CONFIG, type TyrConfig } from "../types.ts";
+import {
+	DEFAULT_TYR_CONFIG,
+	type TyrConfig,
+	TyrConfigSchema,
+} from "../types.ts";
 import { saveEnv } from "./helpers/index.ts";
 
 describe("getConfigPath", () => {
@@ -565,6 +569,20 @@ describe("tyr config CLI (integration)", () => {
 			}
 			// logRetention's .refine() is patched with a pattern
 			expect(parsed.properties.logRetention.pattern).toBe("^(0|\\d+[smhd])$");
+		},
+		{ timeout: 10_000 },
+	);
+
+	test(
+		"config example prints valid JSONC that conforms to the schema",
+		async () => {
+			const { stdout, exitCode } = await runConfig("example");
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("//");
+			const stripped = stripJsonComments(stdout);
+			const parsed = JSON.parse(stripped);
+			const config = TyrConfigSchema.strict().parse(parsed);
+			expect(config.providers).toContain("cache");
 		},
 		{ timeout: 10_000 },
 	);

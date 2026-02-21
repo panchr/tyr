@@ -75,7 +75,7 @@ Tyr reads its own config from `~/.config/tyr/config.json` (overridable via `TYR_
 | `verboseLog` | boolean | `false` | Include LLM prompt/params in log entries |
 | `logRetention` | string | `"30d"` | Auto-prune logs older than this (`"0"` to disable) |
 
-Use `tyr config show` to view the current config, `tyr config set <key> <value>` to update a value, and `tyr config schema` to print the JSON Schema.
+Use `tyr config show` to view the current config, `tyr config set <key> <value>` to update a value, `tyr config example` to print a recommended starter config, and `tyr config schema` to print the JSON Schema.
 
 ### Environment variables
 
