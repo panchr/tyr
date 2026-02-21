@@ -1,4 +1,5 @@
 import { defineCommand } from "citty";
+import { z } from "zod/v4";
 import {
 	getConfigPath,
 	getEnvPath,
@@ -167,6 +168,27 @@ const env = defineCommand({
 	},
 });
 
+const schema = defineCommand({
+	meta: {
+		name: "schema",
+		description: "Print the config JSON Schema",
+	},
+	run() {
+		const jsonSchema = z.toJSONSchema(TyrConfigSchema, {
+			target: "draft-2020-12",
+		});
+		// z.toJSONSchema cannot represent .refine() constraints;
+		// manually add the pattern for logRetention.
+		const props = (jsonSchema as { properties?: Record<string, object> })
+			.properties;
+		if (props?.logRetention) {
+			(props.logRetention as Record<string, unknown>).pattern =
+				"^(0|\\d+[smhd])$";
+		}
+		console.log(JSON.stringify(jsonSchema, null, 2));
+	},
+});
+
 export default defineCommand({
 	meta: {
 		name: "config",
@@ -176,6 +198,7 @@ export default defineCommand({
 		show,
 		set,
 		path,
+		schema,
 		env,
 	},
 });

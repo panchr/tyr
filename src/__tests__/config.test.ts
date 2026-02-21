@@ -540,4 +540,32 @@ describe("tyr config CLI (integration)", () => {
 		},
 		{ timeout: 10_000 },
 	);
+
+	test(
+		"config schema prints valid JSON Schema",
+		async () => {
+			const { stdout, exitCode } = await runConfig("schema");
+			expect(exitCode).toBe(0);
+			const parsed = JSON.parse(stdout);
+			expect(parsed.$schema).toBe(
+				"https://json-schema.org/draft/2020-12/schema",
+			);
+			expect(parsed.type).toBe("object");
+			const expectedKeys = [
+				"providers",
+				"failOpen",
+				"claude",
+				"openrouter",
+				"conversationContext",
+				"verboseLog",
+				"logRetention",
+			];
+			for (const key of expectedKeys) {
+				expect(parsed.properties).toHaveProperty(key);
+			}
+			// logRetention's .refine() is patched with a pattern
+			expect(parsed.properties.logRetention.pattern).toBe("^(0|\\d+[smhd])$");
+		},
+		{ timeout: 10_000 },
+	);
 });
