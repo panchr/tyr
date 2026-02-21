@@ -3,7 +3,7 @@
   "description": "Intelligent permission management for Claude Code hooks",
   "module": "src/index.ts",
   "type": "module",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "bin": {
     "tyr": "src/index.ts"
   },
