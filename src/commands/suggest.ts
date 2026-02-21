@@ -175,12 +175,20 @@ export default defineCommand({
 
 		const systemPrompt = buildSuggestSystemPrompt(suggestions, settingsPath);
 
-		const proc = Bun.spawn(["claude", "--append-system-prompt", systemPrompt], {
-			stdin: "inherit",
-			stdout: "inherit",
-			stderr: "inherit",
-			env: { ...process.env, CLAUDECODE: undefined },
-		});
+		const proc = Bun.spawn(
+			[
+				"claude",
+				"--append-system-prompt",
+				systemPrompt,
+				"Review the suggested permission rules and help me decide which to add.",
+			],
+			{
+				stdin: "inherit",
+				stdout: "inherit",
+				stderr: "inherit",
+				env: { ...process.env, CLAUDECODE: undefined },
+			},
+		);
 
 		process.exitCode = await proc.exited;
 	},
