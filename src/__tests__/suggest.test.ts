@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getSuggestions } from "../commands/suggest.ts";
+import { buildSuggestPrompt, getSuggestions } from "../commands/suggest.ts";
 import { resetDbInstance } from "../db.ts";
 import { appendLogEntry, type LogEntry } from "../log.ts";
 import { saveEnv } from "./helpers/index.ts";
@@ -214,4 +214,21 @@ describe("tyr suggest CLI", () => {
 		},
 		{ timeout: 10_000 },
 	);
+});
+
+describe("buildSuggestPrompt", () => {
+	test("includes commands and settings path", () => {
+		const prompt = buildSuggestPrompt(
+			[
+				{ command: "bun test", count: 10, rule: "Bash(bun test)" },
+				{ command: "bun lint", count: 7, rule: "Bash(bun lint)" },
+			],
+			"/home/user/.claude/settings.json",
+		);
+		expect(prompt).toContain("`bun test` (approved 10 times)");
+		expect(prompt).toContain("`bun lint` (approved 7 times)");
+		expect(prompt).toContain("/home/user/.claude/settings.json");
+		expect(prompt).toContain("Bash(pattern)");
+		expect(prompt).toContain("read the settings file first");
+	});
 });

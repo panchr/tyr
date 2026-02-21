@@ -93,7 +93,7 @@ export function getSuggestions(
 	return suggestions;
 }
 
-function buildSuggestSystemPrompt(
+export function buildSuggestPrompt(
 	suggestions: Suggestion[],
 	settingsPath: string,
 ): string {
@@ -101,9 +101,7 @@ function buildSuggestSystemPrompt(
 		.map((s) => `- \`${s.command}\` (approved ${s.count} times)`)
 		.join("\n");
 
-	return `You are helping configure permission rules for Claude Code.
-
-The user has been manually approving shell commands while using Claude Code. Tyr has identified frequently-approved commands that could be added as permanent allow rules.
+	return `I've been manually approving shell commands while using Claude Code. Tyr has identified frequently-approved commands that could be added as permanent allow rules.
 
 ## Frequently Approved Commands (not yet in allow rules)
 
@@ -112,16 +110,17 @@ ${commandList}
 ## Settings File
 - Path: ${settingsPath}
 - Format: JSON with a \`permissions.allow\` array of strings
-- Each rule is a string like \`Bash(pattern)\` where \`pattern\` can use \`*\` as a glob wildcard
+- Each rule MUST use the exact format \`Bash(pattern)\` where \`pattern\` can use \`*\` as a glob wildcard
 - Example: \`Bash(bun *)\` allows any command starting with \`bun \`
+- IMPORTANT: Before writing rules, read the settings file first to check the existing format and merge with any existing \`permissions.allow\` entries
 
-## Your Task
-Help the user decide which commands to add as allow rules:
+## Instructions
+Help me decide which commands to add as allow rules:
 1. Suggest generalized glob patterns that group similar commands (e.g., "bun test" and "bun lint" → "Bash(bun *)")
 2. Explain what each pattern would match
-3. When the user is ready, write the rules to the settings file at the path above
+3. When I'm ready, write the rules to the settings file at the path above
 
-Be concise. Start by presenting your suggested rules and ask if the user wants to adjust them.`;
+Be concise. Start by presenting your suggested rules and ask if I want to adjust them.`;
 }
 
 export default defineCommand({
@@ -175,22 +174,14 @@ export default defineCommand({
 				? join(configDir, "settings.json")
 				: join(repoRoot, ".claude", "settings.json");
 
-		const systemPrompt = buildSuggestSystemPrompt(suggestions, settingsPath);
+		const prompt = buildSuggestPrompt(suggestions, settingsPath);
 
-		const proc = Bun.spawn(
-			[
-				"claude",
-				"--append-system-prompt",
-				systemPrompt,
-				"Review the suggested permission rules and help me decide which to add.",
-			],
-			{
-				stdin: "inherit",
-				stdout: "inherit",
-				stderr: "inherit",
-				env: { ...process.env, CLAUDECODE: undefined },
-			},
-		);
+		const proc = Bun.spawn(["claude", prompt], {
+			stdin: "inherit",
+			stdout: "inherit",
+			stderr: "inherit",
+			env: { ...process.env, CLAUDECODE: undefined },
+		});
 
 		process.exitCode = await proc.exited;
 	},
