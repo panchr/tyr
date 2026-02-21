@@ -54,37 +54,15 @@ tyr uninstall          # project
 tyr uninstall --global # global
 ```
 
-Use `--dry-run` with either command to preview changes without modifying anything.
+Use `--dry-run` with either command to preview changes without modifying anything. Run `tyr --help` for the full command reference.
 
-## Usage
-
-### Commands
-
-```
-tyr install [--global] [--project] [--dry-run] [--shadow|--audit]
-tyr uninstall [--global] [--project] [--dry-run]
-tyr config show
-tyr config set <key> <value>
-tyr config path
-tyr config env set <key> <value>
-tyr config env show
-tyr config env path
-tyr log [--last N] [--json] [--since T] [--until T] [--decision D] [--provider P] [--cwd C] [--verbose]
-tyr log clear
-tyr db migrate
-tyr stats [--since T] [--json]
-tyr suggest [--global|--project] [--min-count N] [--all]
-tyr debug claude-config [--cwd C]
-tyr version
-```
-
-### Configuration
+## Configuration
 
 Tyr reads its own config from `~/.config/tyr/config.json` (overridable via `TYR_CONFIG_FILE`). The config file supports JSON with comments (JSONC).
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `providers` | string[] | `["chained-commands", "claude"]` | Ordered list of providers to run |
+| `providers` | string[] | `["chained-commands"]` | Ordered list of providers to run |
 | `failOpen` | boolean | `false` | Approve on error instead of failing closed |
 | `claude.model` | string | `"haiku"` | Model identifier for the Claude CLI |
 | `claude.timeout` | number | `10` | Claude request timeout in seconds |
@@ -97,40 +75,25 @@ Tyr reads its own config from `~/.config/tyr/config.json` (overridable via `TYR_
 | `verboseLog` | boolean | `false` | Include LLM prompt/params in log entries |
 | `logRetention` | string | `"30d"` | Auto-prune logs older than this (`"0"` to disable) |
 
-All config values can be overridden per-invocation via CLI flags on the `judge` command (e.g. `--fail-open`, `--claude-model`). These flags are passed through the hook configuration in `.claude/settings.json`.
+Use `tyr config show` to view the current config, `tyr config set <key> <value>` to update a value, and `tyr config schema` to print the JSON Schema.
 
 ### Environment variables
 
-Tyr loads environment variables from `~/.config/tyr/.env` (next to the config file). This is the recommended place to store API keys.
+Tyr loads environment variables from `~/.config/tyr/.env` (next to the config file). This is the recommended place to store API keys (e.g., `OPENROUTER_API_KEY`). Use `tyr config env set <key> <value>` to manage them. Existing process environment variables take precedence.
 
-```bash
-# Store your OpenRouter API key
-tyr config env set OPENROUTER_API_KEY sk-or-...
-
-# View stored variables (values masked)
-tyr config env show
-
-# Print .env file path
-tyr config env path
-```
-
-Existing process environment variables take precedence over `.env` values.
-
-### Providers
+## Providers
 
 Tyr uses a **pipeline architecture** where providers are evaluated in sequence. The first provider to return a definitive `allow` or `deny` wins --- remaining providers are skipped. If all providers `abstain`, the request falls through to Claude Code's default behavior (prompting the user), unless `failOpen` is `true`, in which case the request is approved.
 
 Configure the pipeline via the `providers` array. **Order matters** -- providers run in order.
 
-Valid providers are listed below.
-
-#### `cache`
+### `cache`
 
 Caches prior decisions in SQLite. If the same command was previously allowed or denied (with the same config and permission rules), returns the cached result immediately. The cache auto-invalidates when your config or Claude Code permission rules change.
 
 **Best practice:** Place first in the pipeline to skip expensive downstream evaluations.
 
-#### `chained-commands`
+### `chained-commands`
 
 Parses compound shell commands (`&&`, `||`, `|`, `;`, subshells, command substitution) and checks each sub-command against your Claude Code allow/deny permission patterns.
 
@@ -138,7 +101,7 @@ Parses compound shell commands (`&&`, `||`, `|`, `;`, subshells, command substit
 - **Deny:** _Any_ sub-command matches a deny pattern
 - **Abstain:** Any sub-command has no matching pattern
 
-#### `claude`
+### `claude`
 
 Sends ambiguous commands to the local Claude CLI for semantic evaluation. The LLM sees your permission rules, the command, and the working directory, then reasons about whether the command is safe.
 
@@ -146,19 +109,13 @@ When `claude.canDeny` is `false` (the default), the LLM can only approve command
 
 When `conversationContext` is enabled, the LLM also sees recent conversation messages from the Claude Code session. This lets it allow commands that don't match any configured pattern if the user clearly requested the action and it's a typical, safe development command. The deny list is always checked first -- no amount of context overrides a denied pattern.
 
-Requires a local `claude` CLI binary. While this is somewhat slow due to the subprocess required to run `claude` (generally a decision is made in about 5 seconds), this slowness is acceptable given that it will still be faster than a human understanding and approving a command.
+Note: this provider adds ~5 seconds of latency per evaluation due to the subprocess overhead, but this is still faster than a human reviewing and approving a command. It also reuses whatever authentication `claude` is already configured with.
 
-The main benefit of this provider is that it reuses the authentication that `claude` is already configured with, whether that's an Anthropic API key or a subscription.
+### `openrouter`
 
-#### `openrouter`
+Same semantics as the `claude` provider but uses the OpenRouter HTTP API instead of the local CLI. Supports `conversationContext` in the same way. Requires `OPENROUTER_API_KEY`.
 
-Sends ambiguous commands to the OpenRouter API for evaluation. Same semantics as the `claude` provider but uses an HTTP API instead of the local CLI. Supports `conversationContext` in the same way.
-
-Requires `OPENROUTER_API_KEY` set in your environment or `.env` file.
-
-Only evaluates `Bash` tool requests; abstains on all other tools.
-
-#### Pipeline examples
+### Pipeline examples
 
 ```jsonc
 // Safe & fast (default) -- pattern matching only
@@ -174,82 +131,9 @@ Only evaluates `Bash` tool requests; abstains on all other tools.
 { "providers": ["cache", "chained-commands", "openrouter"] }
 ```
 
-### Viewing logs
+### Permission prompt delay
 
-Every permission decision is logged to a SQLite database at `~/.local/share/tyr/tyr.db` (overridable via `TYR_DB_PATH`).
-
-```bash
-# View recent decisions (default: last 20)
-tyr log
-
-# Show more entries
-tyr log --last 50
-
-# Filter by decision type
-tyr log --decision allow
-tyr log --decision deny
-
-# Filter by time range (ISO or relative: 1h, 30m, 7d)
-tyr log --since 1h
-tyr log --since 2025-01-01 --until 2025-01-31
-
-# Filter by provider or working directory
-tyr log --provider chained-commands
-tyr log --cwd /path/to/project
-
-# JSON output
-tyr log --json
-
-# Show LLM prompts for verbose-logged entries
-tyr log --verbose
-
-# Clear all logs
-tyr log clear
-```
-
-Log entries are automatically pruned based on the `logRetention` config setting (default: 30 days).
-
-### Statistics
-
-```bash
-# View overall stats
-tyr stats
-
-# Stats for the last 7 days
-tyr stats --since 7d
-
-# Machine-readable JSON
-tyr stats --json
-```
-
-Shows: total checks, decision breakdown (allow/deny/abstain/error), cache hit rate, provider distribution, and auto-approval count.
-
-### Suggestions
-
-Tyr can analyze your decision history and start an interactive Claude session to help you refine and apply allow rules:
-
-```bash
-# Start an interactive session with suggested rules (commands approved >= 5 times)
-tyr suggest
-
-# Lower the threshold for which commands are surfaced
-tyr suggest --min-count 3
-
-# Target project settings instead of global
-tyr suggest --project
-
-# Include commands from all projects, not just the current directory
-tyr suggest --all
-```
-
-### Database migrations
-
-When upgrading from one `tyr` version to another, run
-
-```bash
-# Run pending schema migrations
-tyr db migrate
-```
+When tyr is installed as a hook, Claude Code waits for the hook to return before showing the permission prompt. If the pipeline takes a few seconds (e.g., when using the `claude` or `openrouter` provider), you'll see a brief delay before the prompt appears or the command is auto-approved. This is normal — tyr is evaluating the command in the background.
 
 ## Development
 
