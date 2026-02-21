@@ -99,7 +99,7 @@ Tyr reads its own config from `~/.config/tyr/config.json` (overridable via `TYR_
 | `openrouter.endpoint` | string | `"https://openrouter.ai/api/v1"` | OpenRouter API endpoint |
 | `openrouter.timeout` | number | `10` | OpenRouter request timeout in seconds |
 | `openrouter.canDeny` | boolean | `false` | Whether OpenRouter can deny requests |
-| `conversationContext` | boolean | `false` | Include recent conversation in LLM prompts |
+| `conversationContext` | boolean | `false` | Give LLM providers recent conversation context to judge intent (can allow commands beyond configured patterns) |
 | `verboseLog` | boolean | `false` | Include LLM prompt/params in log entries |
 | `logRetention` | string | `"30d"` | Auto-prune logs older than this (`"0"` to disable) |
 
@@ -152,13 +152,15 @@ Sends ambiguous commands to a local Claude CLI for semantic evaluation. The LLM 
 
 When `claude.canDeny` is `false` (the default), the LLM can only approve commands — deny decisions are converted to abstain, forcing the user to decide. Set `canDeny: true` for stricter enforcement.
 
+When `conversationContext` is enabled, the LLM also sees recent conversation messages from the Claude Code session. This lets it allow commands that don't match any configured pattern if the user clearly requested the action and it's a typical, safe development command. The deny list is always checked first — no amount of context overrides a denied pattern.
+
 Requires a local `claude` CLI binary (installed with Claude Code). Timeouts and errors are treated as abstain.
 
 Only evaluates `Bash` tool requests; abstains on all other tools.
 
 #### `openrouter`
 
-Sends ambiguous commands to the OpenRouter API for evaluation. Same semantics as the `claude` provider but uses an HTTP API instead of the local CLI.
+Sends ambiguous commands to the OpenRouter API for evaluation. Same semantics as the `claude` provider but uses an HTTP API instead of the local CLI. Supports `conversationContext` in the same way.
 
 Requires `OPENROUTER_API_KEY` set in your environment or `.env` file.
 
