@@ -135,6 +135,17 @@ Same semantics as the `claude` provider but uses the OpenRouter HTTP API instead
 
 When tyr is installed as a hook, Claude Code shows the permission prompt and calls the hook concurrently. You'll see the prompt appear immediately while tyr evaluates the command in the background. If the hook decides to allow or deny, the prompt is automatically resolved; if the hook abstains, the prompt remains for you to decide manually.
 
+## Database management
+
+Tyr stores all decision logs and cached results in a SQLite database at `~/.local/share/tyr/tyr.db` (overridable via `TYR_DB_PATH`).
+
+| Command | Description |
+|---------|-------------|
+| `tyr db migrate` | Run pending schema migrations after upgrading tyr |
+| `tyr db rename <old> <new>` | Update stored project paths after moving a directory |
+
+`tyr db rename` is useful when you relocate a project on disk. It rewrites the `cwd` column in both the logs and cache tables (including subpaths) so that `tyr log`, `tyr stats`, and cache lookups continue to work for the moved project.
+
 ## Development
 
 ```bash
